@@ -1,19 +1,12 @@
 #![allow(dead_code)]
-use rmcp::{
-    Error as McpError,
-    RoleServer,
-    ServerHandler,
-    model::*,
-    tool,
-};
-
+use rmcp::{Error as McpError, ServerHandler, model::*, tool};
 
 use bluejay_parser::ast::{
-    definition::{DefinitionDocument, SchemaDefinition},
     Parse,
+    definition::{DefinitionDocument, SchemaDefinition},
 };
 
-use bluejay_core::definition::{ SchemaDefinition as SchemaDefinitionCore};
+use bluejay_core::definition::SchemaDefinition as SchemaDefinitionCore;
 
 #[derive(Debug, Clone)]
 pub struct Explorer {
@@ -22,12 +15,19 @@ pub struct Explorer {
 
 #[tool(tool_box)]
 impl Explorer {
-    pub fn new(schema_path: String) -> Self {
-        Explorer { schema_path }
+    pub fn new(schema_path: String) -> Result<Self, McpError> {
+        std::fs::read_to_string(&schema_path).map_err(|e| {
+            McpError::invalid_params(
+                format!("Invalid schema path or unreadable file: {}", e),
+                None,
+            )
+        })?;
+
+        Ok(Explorer { schema_path })
     }
 
-    #[tool(description = "Print and return the schema query")]
-    async fn print_schema(&self) -> Result<CallToolResult, McpError> {
+    #[tool(description = "Return the GraphQL schema query")]
+    async fn get_schema(&self) -> Result<CallToolResult, McpError> {
         let s = std::fs::read_to_string(self.schema_path.clone()).unwrap();
         let document = DefinitionDocument::parse(s.as_str()).unwrap();
         let schema_definition: SchemaDefinition =

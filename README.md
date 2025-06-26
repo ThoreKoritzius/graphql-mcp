@@ -26,11 +26,13 @@ The server will be running at: [http://localhost:5000](http://localhost:5000)
 
 ### Running the Server
 
-To start the server normally without inspection:
+To start the server normally without inspection use
 
 ```bash
-cargo run
+cargo run -- --schema ./examples/space.graphql
 ```
+
+where schema should be the path of your graphql schema.
 
 This will start the application and serve it at `http://localhost:5000`.
 
