@@ -7,22 +7,12 @@ edition = "2024"
 anyhow = "1.0.98"
 bluejay-core = "0.3.1"
 bluejay-parser = "0.3.1"
-rmcp = { version = "0.1.5", features = ["server",
-    "transport-sse-server",
-    "transport-io"] }
-serde = "1.0.219"
+reqwest = { version = "0.12.20", features = ["json"] }
+rmcp = { version = "0.1.5", features = ["server", "transport-io"] }
+
+serde = { version = "1.0.219", features = ["derive"] }
 
 serde_json = "1.0.140"
-tokio = { version = "1", features = [
-    "macros",
-    "rt",
-    "rt-multi-thread",
-    "io-std",
-    "signal",
-] }
+tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread", "io-std", "signal"] }
 tracing = "0.1.41"
-tracing-subscriber = { version = "0.3", features = [
-    "env-filter",
-    "std",
-    "fmt",
-] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "std", "fmt"] }
