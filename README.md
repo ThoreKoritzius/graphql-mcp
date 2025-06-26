@@ -22,8 +22,30 @@ This project provides a lightweight GraphQL server implemented in Rust. It serve
 
 ## Usage
 
-The server will be running on http://localhost:5000.
-Use `npx @modelcontextprotocol/inspector cargo run` to inspect.
+The server will be running at: [http://localhost:5000](http://localhost:5000)
+
+### Running the Server
+
+To start the server normally without inspection:
+
+```bash
+cargo run
+```
+
+This will start the application and serve it at `http://localhost:5000`.
+
+### Inspecting with Inspector (Optional)
+
+To inspect the server behavior checkout and install [https://github.com/modelcontextprotocol/inspector](https://github.com/modelcontextprotocol/inspector), use the following command instead:
+
+```bash
+npx @modelcontextprotocol/inspector cargo run
+```
+
+Select the **Transport Type**: `STDIO`.
+
+This will launch the server with Inspector attached for live introspection.
+
 
 ## Contributing
 
