@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use bluejay_parser::ast::{
     Parse,
-    definition::{DefinitionDocument, SchemaDefinition},
+    definition::{DefaultContext, DefinitionDocument, SchemaDefinition},
 };
 use rmcp::{Error as McpError, ServerHandler, model::*, schemars, tool};
 
@@ -24,38 +24,53 @@ impl Explorer {
 
         Ok(Explorer { schema_path })
     }
-
-    #[tool(description = "Return the GraphQL entry point")]
-    async fn get_schema_overview(&self) -> Result<CallToolResult, McpError> {
+    fn get_schema_definition(&self) -> SchemaDefinition {
         let s = std::fs::read_to_string(self.schema_path.clone()).unwrap();
-        let document = DefinitionDocument::parse(s.as_str()).unwrap();
-        let schema_definition: SchemaDefinition =
-            SchemaDefinition::try_from(&document).expect("Schema had errors");
+        let s_static: &'static str = Box::leak(s.into_boxed_str());
+        let document = DefinitionDocument::<DefaultContext>::parse(s_static).unwrap();
+        let leaked_document: &'static DefinitionDocument<DefaultContext> =
+            Box::leak(Box::new(document));
+        SchemaDefinition::try_from(leaked_document).expect("Schema had errors")
+    }
 
-        // Return the entry point from the GraphQL schema (assumed to be the query type)
-        let entry_point = format!("{:#?}", schema_definition.query());
-        Ok(CallToolResult::success(vec![Content::text(entry_point)]))
+    async fn get_fulll_query(&self) -> Result<CallToolResult, McpError> {
+        let schema_definition: SchemaDefinition<'_> = self.get_schema_definition();
+        let mut type_details = String::from("Query overview\n");
+        type_details.push_str(&format!("{:#?}", schema_definition.query()));
+
+        Ok(CallToolResult::success(vec![Content::text(type_details)]))
+    }
+
+    #[tool(description = "Return all available type names")]
+    async fn get_type_overview(&self) -> Result<CallToolResult, McpError> {
+        let schema_definition: SchemaDefinition<'_> = self.get_schema_definition();
+        let type_names: Vec<&str> = schema_definition
+            .type_definitions()
+            .map(|a| a.name())
+            .collect();
+        let output = format!(
+            "These are all available type names:\n{}",
+            type_names.join("\n")
+        );
+        println!("{}", output);
+        Ok(CallToolResult::success(vec![Content::text(output)]))
     }
 
     #[tool(description = "Return detailed discovery info for a specific GraphQL type/field")]
     async fn get_graphql_type_details(
         &self,
         #[tool(param)]
-        #[schemars(description = "The name of the GraphQL type")]
+        #[schemars(description = "Name of schema type")]
         type_name: String,
     ) -> Result<CallToolResult, McpError> {
-        let file_contents = std::fs::read_to_string(self.schema_path.clone()).unwrap();
-        let document = DefinitionDocument::parse(file_contents.as_str()).unwrap();
-        let graphql_schema: SchemaDefinition =
-            SchemaDefinition::try_from(&document).expect("Schema had errors");
-
-        let matching_type = graphql_schema.type_definitions().find(|type_def| {
+        let schema_definition = self.get_schema_definition();
+        let matching_type = schema_definition.type_definitions().find(|type_def| {
             type_def
                 .name()
                 .to_lowercase()
                 .contains(&type_name.to_lowercase())
         });
-        let mut type_details = String::from("Details for GraphQL type\n");
+        let mut type_details = String::from("Details for type\n");
         type_details.push_str(&format!("{:#?}", matching_type));
         Ok(CallToolResult::success(vec![Content::text(type_details)]))
     }
