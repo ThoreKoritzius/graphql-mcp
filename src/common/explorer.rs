@@ -10,11 +10,12 @@ use bluejay_core::definition::SchemaDefinition as SchemaDefinitionCore;
 #[derive(Debug, Clone)]
 pub struct Explorer {
     pub schema_path: String,
+    pub endpoint: String,
 }
 
 #[tool(tool_box)]
 impl Explorer {
-    pub fn new(schema_path: String) -> Result<Self, McpError> {
+    pub fn new(schema_path: String, endpoint: String) -> Result<Self, McpError> {
         std::fs::read_to_string(&schema_path).map_err(|e| {
             McpError::invalid_params(
                 format!("Invalid schema path or unreadable file: {}", e),
@@ -22,7 +23,10 @@ impl Explorer {
             )
         })?;
 
-        Ok(Explorer { schema_path })
+        Ok(Explorer {
+            schema_path,
+            endpoint,
+        })
     }
     fn get_schema_definition(&self) -> SchemaDefinition {
         let s = std::fs::read_to_string(self.schema_path.clone()).unwrap();
@@ -40,6 +44,9 @@ impl Explorer {
 
         Ok(CallToolResult::success(vec![Content::text(type_details)]))
     }
+
+    // idea: agentically discover types to query
+    // need to know if .query
 
     #[tool(description = "Return all available type names")]
     async fn get_type_overview(&self) -> Result<CallToolResult, McpError> {
@@ -73,6 +80,22 @@ impl Explorer {
         let mut type_details = String::from("Details for type\n");
         type_details.push_str(&format!("{:#?}", matching_type));
         Ok(CallToolResult::success(vec![Content::text(type_details)]))
+    }
+
+    // Actually Perform Query, TODO: refactor
+    #[tool(description = "Execute query")]
+    async fn execute_query(&self) -> Result<CallToolResult, McpError> {
+        let s = std::fs::read_to_string(self.schema_path.clone()).unwrap();
+        let s_static: &'static str = Box::leak(s.into_boxed_str());
+        let document = DefinitionDocument::<DefaultContext>::parse(s_static).unwrap();
+        //query document
+        let leaked_document: &'static DefinitionDocument<DefaultContext> =
+            Box::leak(Box::new(document));
+        let schema_definition =
+            SchemaDefinition::try_from(leaked_document).expect("Schema had errors");
+        let query = schema_definition.query();
+        let output = "";
+        Ok(CallToolResult::success(vec![Content::text(output)]))
     }
 }
 

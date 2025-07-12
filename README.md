@@ -2,6 +2,11 @@
 
 Welcome to the GraphQL MCP Server repository. This experimental project is designed to help you connect an MCP Server with GraphQL using Rust.
 
+
+## Dependencies
+- `bluejay-parser`
+- `rmcp`
+
 ## Overview
 
 This project provides a lightweight GraphQL server implemented in Rust. It serves as a tool for learning, experimentation, and prototyping with GraphQL queries and Rust’s performance and safety features.

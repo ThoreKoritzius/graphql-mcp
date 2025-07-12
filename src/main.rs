@@ -15,7 +15,7 @@ struct Args {
     #[arg(long, short = 's')]
     schema: Option<PathBuf>,
 
-    /// MCP Server endpoint
+    /// GraphQL Server Endpoint
     #[arg(long, short = 'e', default_value = "http://127.0.0.1:5000")]
     endpoint: String,
 }
@@ -46,7 +46,7 @@ async fn main() -> Result<()> {
 
     // Start server
     tracing::info!("Starting GraphQL-MCP server");
-    let explorer = Explorer::new(schema_path).map_err(|e| {
+    let explorer = Explorer::new(schema_path, args.endpoint).map_err(|e| {
         tracing::error!("Failed to initialize Explorer: {:?}", e);
         e
     })?;
