@@ -27,10 +27,12 @@ async fn main() -> Result<()> {
         .with_ansi(false)
         .init();
 
-    // Arguemnt parsing
+    // Argument parsing
     let args = Args::parse();
-    // Start server
     tracing::info!("Starting GraphQL-MCP server");
+    tracing::info!("Using endpoint: {}", args.endpoint);
+
+    // Start server
     let explorer = Explorer::new(args.endpoint).map_err(|e| {
         tracing::error!("Failed to initialize Explorer: {:?}", e);
         e

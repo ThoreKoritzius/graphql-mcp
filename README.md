@@ -20,19 +20,32 @@ This project provides a lightweight GraphQL server implemented in Rust. It serve
 3. Run the server:
    `cargo run`
 
-## Usage
-
 The server will be running at: [http://localhost:5000](http://localhost:5000)
 
+## Usage
+
+A simple test script is provided by calling `python3 test/test.py`, where you can test the interaction with the MCP Server via OpenAI. For this work, you need to set your `OPENAI_API_KEY` in `test/.env`.
+
+Connect to Claude or other LLMs via the following config
+```json
+{
+  "mcpServers": {
+      "graphql_mcp": {
+         "command": "target/release/graphql-mcp",
+         "args": []
+      }
+   }
+}
+```
 ### Running the Server
 
 To start the server normally without inspection use
 
 ```bash
-cargo run -- --schema ./examples/space.graphql
+cargo run -- --endpoint http://127.0.0.1:8000
 ```
 
-where schema should be the path of your graphql schema.
+with your graphql server endpoint.
 
 This will start the application and serve it at `http://localhost:5000`.
 
