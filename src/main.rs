@@ -11,12 +11,8 @@ use crate::common::explorer::Explorer;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// Path to GraphQL API schema
-    #[arg(long, short = 's')]
-    schema: Option<PathBuf>,
-
-    /// MCP Server endpoint
-    #[arg(long, short = 'e', default_value = "http://127.0.0.1:5000")]
+    /// GraphQL Server endpoint
+    #[arg(long, short = 'e', default_value = "http://127.0.0.1:8000")]
     endpoint: String,
 }
 
@@ -33,20 +29,9 @@ async fn main() -> Result<()> {
 
     // Arguemnt parsing
     let args = Args::parse();
-    let schema_path = if let Some(path) = args.schema {
-        path.to_string_lossy().into_owned()
-    } else {
-        let default = "./examples/space.graphql".to_string();
-        tracing::info!(
-            "No schema specified. Using default schema path: {}",
-            default
-        );
-        default
-    };
-
     // Start server
     tracing::info!("Starting GraphQL-MCP server");
-    let explorer = Explorer::new(schema_path).map_err(|e| {
+    let explorer = Explorer::new(args.endpoint).map_err(|e| {
         tracing::error!("Failed to initialize Explorer: {:?}", e);
         e
     })?;

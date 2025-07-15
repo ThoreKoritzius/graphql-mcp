@@ -1,58 +1,78 @@
 #![allow(dead_code)]
+use bluejay_core::definition::SchemaDefinition as SchemaDefinitionCore;
 use bluejay_parser::ast::{
     Parse,
     definition::{DefaultContext, DefinitionDocument, SchemaDefinition},
 };
 use rmcp::{Error as McpError, ServerHandler, model::*, schemars, tool};
-
-use bluejay_core::definition::SchemaDefinition as SchemaDefinitionCore;
+use serde_json::Value;
+use serde_json::json;
 
 #[derive(Debug, Clone)]
 pub struct Explorer {
-    pub schema_path: String,
+    pub endpoint: String,
 }
 
 #[tool(tool_box)]
 impl Explorer {
-    pub fn new(schema_path: String) -> Result<Self, McpError> {
-        std::fs::read_to_string(&schema_path).map_err(|e| {
-            McpError::invalid_params(
-                format!("Invalid schema path or unreadable file: {}", e),
-                None,
-            )
+    pub fn new(endpoint: String) -> Result<Self, McpError> {
+        Ok(Explorer { endpoint })
+    }
+
+    #[tool(description = "Return all available type names by introspecting the GraphQL endpoint")]
+    async fn get_type_overview(&self) -> Result<CallToolResult, McpError> {
+        // 1. Build the introspection query
+        let introspection = r#"
+        query IntrospectionTypes {
+            __schema {
+            types {
+                name
+            }
+            }
+        }
+        "#;
+
+        let payload = serde_json::json!({ "query": introspection });
+
+        // 2. Send it to the endpoint
+        let client = reqwest::Client::new();
+        let resp = client
+            .post(&self.endpoint)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()
+            .await
+            .map_err(|e| McpError::internal_error(format!("HTTP request error: {}", e), None))?;
+
+        let status = resp.status();
+        let body_text = resp.text().await.map_err(|e| {
+            McpError::internal_error(format!("Failed to read response: {}", e), None)
         })?;
 
-        Ok(Explorer { schema_path })
-    }
-    fn get_schema_definition(&self) -> SchemaDefinition {
-        let s = std::fs::read_to_string(self.schema_path.clone()).unwrap();
-        let s_static: &'static str = Box::leak(s.into_boxed_str());
-        let document = DefinitionDocument::<DefaultContext>::parse(s_static).unwrap();
-        let leaked_document: &'static DefinitionDocument<DefaultContext> =
-            Box::leak(Box::new(document));
-        SchemaDefinition::try_from(leaked_document).expect("Schema had errors")
-    }
+        if !status.is_success() {
+            return Err(McpError::internal_error(
+                format!("GraphQL returned {}: {}", status, body_text),
+                None,
+            ));
+        }
 
-    async fn get_fulll_query(&self) -> Result<CallToolResult, McpError> {
-        let schema_definition: SchemaDefinition<'_> = self.get_schema_definition();
-        let mut type_details = String::from("Query overview\n");
-        type_details.push_str(&format!("{:#?}", schema_definition.query()));
+        // 3. Parse the JSON and extract type names
+        let json: Value = serde_json::from_str(&body_text)
+            .map_err(|e| McpError::internal_error(format!("Invalid JSON: {}", e), None))?;
 
-        Ok(CallToolResult::success(vec![Content::text(type_details)]))
-    }
+        let types = json
+            .pointer("/data/__schema/types")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| McpError::internal_error("Missing __schema.types in response", None))?;
 
-    #[tool(description = "Return all available type names")]
-    async fn get_type_overview(&self) -> Result<CallToolResult, McpError> {
-        let schema_definition: SchemaDefinition<'_> = self.get_schema_definition();
-        let type_names: Vec<&str> = schema_definition
-            .type_definitions()
-            .map(|a| a.name())
+        let names: Vec<String> = types
+            .iter()
+            .filter_map(|t| t.get("name").and_then(|n| n.as_str()).map(String::from))
             .collect();
-        let output = format!(
-            "These are all available type names:\n{}",
-            type_names.join("\n")
-        );
-        println!("{}", output);
+
+        // 4. Format and return
+        let output = format!("These are all available type names:\n{}", names.join("\n"));
+
         Ok(CallToolResult::success(vec![Content::text(output)]))
     }
 
@@ -63,16 +83,112 @@ impl Explorer {
         #[schemars(description = "Name of schema type")]
         type_name: String,
     ) -> Result<CallToolResult, McpError> {
-        let schema_definition = self.get_schema_definition();
-        let matching_type = schema_definition.type_definitions().find(|type_def| {
-            type_def
-                .name()
-                .to_lowercase()
-                .contains(&type_name.to_lowercase())
-        });
-        let mut type_details = String::from("Details for type\n");
-        type_details.push_str(&format!("{:#?}", matching_type));
-        Ok(CallToolResult::success(vec![Content::text(type_details)]))
+        // 1. Build the introspection query for a single type
+        let introspection = format!(
+            r#"
+      query IntrospectType {{
+        __type(name: "{typename}") {{
+          name
+          kind
+          description
+          fields(includeDeprecated: true) {{
+            name
+            description
+            args {{
+              name
+              description
+              type {{
+                name
+                kind
+                ofType {{ name kind }}
+              }}
+            }}
+            type {{
+              name
+              kind
+              ofType {{ name kind }}
+            }}
+          }}
+        }}
+      }}
+    "#,
+            typename = type_name
+        );
+
+        let payload = serde_json::json!({ "query": introspection });
+
+        // 2. Send it to the endpoint
+        let client = reqwest::Client::new();
+        let resp = client
+            .post(&self.endpoint)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()
+            .await
+            .map_err(|e| McpError::internal_error(format!("HTTP request error: {}", e), None))?;
+
+        let status = resp.status();
+        let body_text = resp.text().await.map_err(|e| {
+            McpError::internal_error(format!("Failed to read response: {}", e), None)
+        })?;
+
+        if !status.is_success() {
+            return Err(McpError::internal_error(
+                format!("GraphQL returned {}: {}", status, body_text),
+                None,
+            ));
+        }
+
+        // 3. Parse the JSON and pull out the __type object
+        let json: serde_json::Value = serde_json::from_str(&body_text)
+            .map_err(|e| McpError::internal_error(format!("Invalid JSON: {}", e), None))?;
+
+        let type_info = json
+            .pointer("/data/__type")
+            .ok_or_else(|| McpError::internal_error("Missing __type in response", None))?;
+
+        // 4. Pretty-print the JSON fragment for user visibility
+        let pretty = serde_json::to_string_pretty(type_info)
+            .map_err(|e| McpError::internal_error(format!("Failed to format JSON: {}", e), None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(pretty)]))
+    }
+
+    #[tool(description = "Execute a GraphQL query against the configured endpoint")]
+    async fn execute_query(
+        &self,
+        #[tool(param)]
+        #[schemars(description = "GraphQL query")]
+        query: String,
+    ) -> Result<CallToolResult, McpError> {
+        // Build the JSON payload
+        let payload = json!({ "query": query });
+
+        // Send the POST request
+        let client = reqwest::Client::new();
+        let resp = client
+            .post(&self.endpoint)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()
+            .await
+            .map_err(|e| McpError::internal_error(format!("HTTP request error: {}", e), None))?;
+
+        // Check for non-2xx
+        let status = resp.status();
+        let text = resp.text().await.map_err(|e| {
+            McpError::internal_error(format!("Failed to read response body: {}", e), None)
+        })?;
+
+        if !status.is_success() {
+            return Err(McpError::internal_error(
+                format!("GraphQL endpoint returned {}: {}", status, text),
+                None,
+            ));
+        }
+
+        // Return the raw JSON text as the tool result
+        Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 }
 
