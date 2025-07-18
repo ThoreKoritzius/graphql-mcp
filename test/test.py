@@ -7,9 +7,8 @@ import subprocess
 
 config = {
     "mcpServers": {
-        "rust_mcp": {
-            "command": "target/release/graphql-mcp",
-             "args": []
+        "graphql_mcp": {
+            "url": "http://localhost:5001/sse"
         }
     }
 }

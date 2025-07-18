@@ -24,19 +24,40 @@ The server will be running at: [http://localhost:5000](http://localhost:5000)
 
 ## Usage
 
-A simple test script is provided by calling `python3 test/test.py`, where you can test the interaction with the MCP Server via OpenAI. For this work, you need to set your `OPENAI_API_KEY` in `test/.env`.
+This repo contains three services  
+`graphql-mcp`: The main graphql mcp server. you can either run it as a docker service (where the code is build), or use `cargo run` with an argument --endpoint http://your-graphql-endpoint to specifically connect to your specific endpoint
 
-Connect to Claude or other LLMs via the following config
+`test-graphql-server` a mock graphql server to test the mcp, so mcp redirects to this
+
+`test-llm-server` a test llm server,
+
+you need to specifiy `OPENAI_API_KEY` in a .env  file. Then
+
+```
+docker-compose up --build
+```
+
+when all services running, you can test the mcp by querying the test-llm-server
+
+```bash
+curl -X POST http://localhost:8000/ask \
+     -H "Content-Type: application/json" \
+     -d '{"question": "What fields are in the GraphQL table?"}'
+```
+
+and see the agent progress in your docker logs.
+
+Alternatively connect via your own llm service, e.g. claude etc via
 ```json
 {
   "mcpServers": {
       "graphql_mcp": {
-         "command": "target/release/graphql-mcp",
-         "args": []
+            "url": "http://graphql-mcp-server:5001/sse"
       }
    }
 }
 ```
+
 ### Running the Server
 
 To start the server normally without inspection use

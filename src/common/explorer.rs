@@ -4,7 +4,7 @@ use bluejay_parser::ast::{
     Parse,
     definition::{DefaultContext, DefinitionDocument, SchemaDefinition},
 };
-use rmcp::{Error as McpError, ServerHandler, model::*, schemars, tool};
+use rmcp::{Error as McpError, ServerHandler, const_string, model::*, schemars, tool};
 use serde_json::Value;
 use serde_json::json;
 
@@ -158,7 +158,9 @@ impl Explorer {
     async fn execute_query(
         &self,
         #[tool(param)]
-        #[schemars(description = "GraphQL query")]
+        #[schemars(
+            description = "GraphQL query, must be as precise as possible, e.g. by applying filters"
+        )]
         query: String,
     ) -> Result<CallToolResult, McpError> {
         // Build the JSON payload
@@ -192,13 +194,15 @@ impl Explorer {
     }
 }
 
+const_string!(Echo = "echo");
 #[tool(tool_box)]
 impl ServerHandler for Explorer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
-            instructions: Some("GraphQL schema connector".into()),
+            protocol_version: ProtocolVersion::V_2024_11_05,
             capabilities: ServerCapabilities::builder().enable_tools().build(),
-            ..Default::default()
+            server_info: Implementation::from_build_env(),
+            instructions: Some("This server lets you connecto to graphql".to_string()),
         }
     }
 }

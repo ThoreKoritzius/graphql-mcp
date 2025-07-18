@@ -1,12 +1,11 @@
 use anyhow::Result;
 use clap::Parser;
-use rmcp::{ServiceExt, transport::stdio};
-use std::path::PathBuf;
-use tracing_subscriber::{self, EnvFilter};
+use rmcp::{ServiceExt, transport::sse_server::SseServer};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod common;
-
 use crate::common::explorer::Explorer;
+const BIND_ADDRESS: &str = "0.0.0.0:5001";
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -16,33 +15,43 @@ struct Args {
     endpoint: String,
 }
 
-/// Entry point for the GraphQL-MCP server.
-/// This server initializes tracing, parses args, loads the GraphQL schema,
-/// serves it over a transport channel (stdio), and waits for requests on default http://localhost:5000/mcp
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env().add_directive(tracing::Level::DEBUG.into()))
-        .with_writer(std::io::stderr)
-        .with_ansi(false)
+    // Tracing
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "debug".to_string().into()),
+        )
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_writer(std::io::stderr)
+                .with_ansi(false),
+        )
         .init();
 
-    // Argument parsing
+    // Parse CLI
     let args = Args::parse();
-    tracing::info!("Starting GraphQL-MCP server");
-    tracing::info!("Using endpoint: {}", args.endpoint);
+    tracing::info!("Starting GraphQL-MCP SSE server on {}", BIND_ADDRESS);
+    tracing::info!("Proxying GraphQL endpoint: {}", args.endpoint);
 
-    // Start server
-    let explorer = Explorer::new(args.endpoint).map_err(|e| {
+    // Build one Explorer instance that we can clone
+    let explorer = Explorer::new(args.endpoint.clone()).map_err(|e| {
         tracing::error!("Failed to initialize Explorer: {:?}", e);
         e
     })?;
-    let service = explorer.serve(stdio()).await.inspect_err(|e| {
-        tracing::error!("Serving error: {:?}", e);
-    })?;
 
-    // Wait until the server completes
-    service.waiting().await?;
+    // Serve over SSE, and for each new connection clone your Explorer
+    let server = SseServer::serve(BIND_ADDRESS.parse()?)
+        .await?
+        .with_service({
+            let explorer = explorer.clone();
+            move || explorer.clone()
+        });
 
+    // Wait for Ctrl-C
+    tokio::signal::ctrl_c().await?;
+    tracing::info!("Shutting down SSE server");
+    server.cancel();
     Ok(())
 }

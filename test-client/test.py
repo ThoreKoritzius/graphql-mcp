@@ -17,14 +17,11 @@ class Question(BaseModel):
     question: str
 
 # Configuration for the MCP remote server
+
 config = {
     "mcpServers": {
         "graphql_mcp": {
-            "command": "npx",
-            "args": [
-                "mcp-remote",
-                "http://127.0.0.1:5001/mcp"
-            ]
+            "url": "http://graphql-mcp-server:5001/sse"
         }
     }
 }
