@@ -1,9 +1,4 @@
 #![allow(dead_code)]
-use bluejay_core::definition::SchemaDefinition as SchemaDefinitionCore;
-use bluejay_parser::ast::{
-    Parse,
-    definition::{DefaultContext, DefinitionDocument, SchemaDefinition},
-};
 use rmcp::{Error as McpError, ServerHandler, const_string, model::*, schemars, tool};
 use serde_json::Value;
 use serde_json::json;

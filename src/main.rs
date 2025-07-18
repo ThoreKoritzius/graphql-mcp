@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use rmcp::{ServiceExt, transport::sse_server::SseServer};
+use rmcp::transport::sse_server::SseServer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod common;
