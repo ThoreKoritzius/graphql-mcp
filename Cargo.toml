@@ -9,7 +9,7 @@ bluejay-core = "0.3.1"
 bluejay-parser = "0.3.1"
 clap = { version = "4.5.40", features = ["derive"] }
 reqwest = { version = "0.12.20", features = ["json"] }
-rmcp = { version = "0.1.5", features = ["server", "transport-io"] }
+rmcp = { version = "0.1.5", features = ["server", "transport-io", "transport-sse","transport-sse-server"] }
 
 serde = { version = "1.0.219", features = ["derive"] }
 

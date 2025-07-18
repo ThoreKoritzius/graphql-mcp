@@ -5,10 +5,31 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runtime
     container_name: graphql-mcp-server
     ports:
-      - "5000:5000"
+      - "5001:5001"
     environment:
       - RUST_LOG=debug
       - ENDPOINT=http://host.docker.internal:8000
+    restart: unless-stopped
+
+  test-graphql-server:
+    build:
+      context: ./test-graphql-server
+      dockerfile: Dockerfile
+    container_name: test-graphql-server
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  test-llm-server:
+    build:
+      context: ./test-client
+      dockerfile: Dockerfile
+    container_name: test-llm-server
+    ports:
+      - "3000:3000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     restart: unless-stopped
