@@ -1,23 +1,34 @@
 import os
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
+from typing import List, Literal, Optional
+from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, SystemMessage
+from langchain_core.agents import AgentAction
 from langchain_openai import ChatOpenAI
 from mcp_use import MCPClient, MCPAgent
-import pandas as pd
-import asyncio
-import subprocess
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+
+from fastapi.responses import StreamingResponse
+import json
+from starlette.responses import Response
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse, JSONResponse
+import json
+
 
 # Initialize FastAPI app
 app = FastAPI()
 
-class Question(BaseModel):
-    """
-    Request model containing a single question string.
-    """
+# Pydantic request/response models
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+class FullQuestion(BaseModel):
     question: str
+    history: Optional[List[ChatMessage]] = []
 
-# Configuration for the MCP remote server
-
+# MCP config
 config = {
     "mcpServers": {
         "graphql_mcp": {
@@ -26,37 +37,99 @@ config = {
     }
 }
 
-# Global agent object to be initialized on app startup
+# Global MCPAgent
 agent: MCPAgent = None
 
 @app.on_event("startup")
 async def startup_event():
     """
-    FastAPI startup event handler.
-    Initializes the MCPClient and ChatOpenAI-based MCPAgent.
+    On startup, initialize MCP client and agent.
     """
+    global agent
     client = MCPClient.from_dict(config)
     llm = ChatOpenAI(model="gpt-4o-mini", openai_api_key=os.getenv("OPENAI_API_KEY"))
-    global agent
-    agent = MCPAgent(llm=llm, client=client, max_steps=30)
+    agent = MCPAgent(llm=llm, client=client, max_steps=30, verbose=True)
+
+@app.get("/")
+async def serve_index():
+    """
+    Serve the local frontend (optional).
+    """
+    return FileResponse("index.html")
 
 @app.post("/ask")
-async def ask_question(q: Question):
-    """
-    POST endpoint to process a natural language question using the MCPAgent.
+async def ask(request: Request):
+    params = dict(request.query_params)
+    stream = params.get("stream", "false").lower() == "true"
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
 
-    Parameters:
-    - q (Question): A Pydantic model containing the user question.
+    question = data.get("question")
+    history = data.get("history", [])
 
-    Returns:
-    - JSON response containing the agent's result.
-    """
-    if not agent:
-        raise HTTPException(status_code=503, detail="Agent not ready")
-    result = await agent.run(q.question)
-    return {"result": result}
 
-# Optional: run with uvicorn if executed directly
+    if stream:
+        async def event_generator():
+            async for step in agent.stream(
+                question,
+                max_steps=None,
+                manage_connector=True,
+                external_history=history,
+                track_execution=True,
+            ):
+                print("Yielding:", step, flush=True)
+                if isinstance(step, tuple):  # (AgentAction, str)
+                    action, observation = step
+                    yield (
+                        "data: "
+                        + json.dumps({
+                            "type": "tool_call",
+                            "tool": getattr(action, 'tool', None),
+                            "tool_input": getattr(action, 'tool_input', None),
+                            "observation": observation
+                        })
+                        + "\n\n"
+                    )
+                else:
+                    yield (
+                        "data: "
+                        + json.dumps({
+                            "type": "result",
+                            "result": step
+                        })
+                        + "\n\n"
+                    )
+            yield "event: end\ndata: {}\n\n"
+
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+    # Non-stream fallback: single result
+    tool_calls = []
+    final_result = None
+    async for step in agent.stream(
+        question,
+        max_steps=None,
+        manage_connector=True,
+        external_history=history,
+        track_execution=True,
+    ):
+        if isinstance(step, tuple):  # (AgentAction, str)
+            action, observation = step
+            tool_calls.append({
+                "tool": getattr(action, 'tool', None),
+                "tool_input": getattr(action, 'tool_input', None),
+                "observation": observation
+            })
+        else:
+            # The final result (answer string)
+            final_result = step
+
+    return JSONResponse({
+        "result": final_result,
+        "tool_calls": tool_calls
+    })
+# Optional CLI entry point
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("test:app", host="0.0.0.0", port=3000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=3000, reload=True)

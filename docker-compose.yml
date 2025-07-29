@@ -5,7 +5,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: runtime
     container_name: graphql-mcp-server
     ports:
       - "5001:5001"

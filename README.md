@@ -1,88 +1,107 @@
 # GraphQL MCP Server
 
-Welcome to the GraphQL MCP Server repository. This experimental project is designed to help you connect an MCP Server with GraphQL using Rust.
+A lightweight, experimental GraphQL server in Rust designed to bridge [Model Context Protocol (MCP)] with GraphQL.  
+This project enables rapid prototyping, experimentation, and learning.
+
+---
 
 ## Overview
 
-This project provides a lightweight GraphQL server implemented in Rust. It serves as a tool for learning, experimentation, and prototyping with GraphQL queries and Rust’s performance and safety features.
+This project provides a GraphQL MCP server implemented in Rust, as well as test servers for local development:
+
+- **High performance** through Rust.
+- **Modular**: Easily connect to custom GraphQL or LLM servers.
+- **Ideal for experimentation and learning**: Observe live tool calls, responses, and server behavior.
+
+---
+
+## Services
+
+- **graphql-mcp**: Main GraphQL MCP server. Run via Docker or Cargo. Forwards calls to a specified GraphQL endpoint.
+- **test-graphql-server**: Mock GraphQL endpoint for testing MCP integration.
+- **test-llm-server**: Mock LLM server for end-to-end prototyping and local dev.
+
+---
 
 ## Prerequisites
 
-- Rust and Cargo (install via https://rustup.rs)
-- (Optional) Docker for containerized deployments
+- [Rust & Cargo](https://rustup.rs/) (required)
+- [Docker](https://www.docker.com/) (optional, for containerized deployment)
 
-## Getting Started
+---
 
-1. Clone the repository:
-   `git clone https://github.com/ThoreKoritzius/graphql-mcp.git`
-2. Navigate into the project directory:
-   `cd graphql-mcp`
-3. Run the server:
-   `cargo run`
+## Setup & Getting Started
 
-The server will be running at: [http://localhost:5000](http://localhost:5000)
-
-## Usage
-
-This repo contains three services  
-`graphql-mcp`: The main graphql mcp server. you can either run it as a docker service (where the code is build), or use `cargo run` with an argument --endpoint http://your-graphql-endpoint to specifically connect to your specific endpoint
-
-`test-graphql-server` a mock graphql server to test the mcp, so mcp redirects to this
-
-`test-llm-server` a test llm server,
-
-you need to specifiy `OPENAI_API_KEY` in a .env  file. Then
-
-```
-docker-compose up --build
-```
-
-when all services running, you can test the mcp by querying the test-llm-server
+### 1. Clone the Repository
 
 ```bash
-curl -X POST http://localhost:8000/ask \
-     -H "Content-Type: application/json" \
-     -d '{"question": "What fields are in the GraphQL table?"}'
+git clone https://github.com/ThoreKoritzius/graphql-mcp.git
+cd graphql-mcp
 ```
 
-and see the agent progress in your docker logs.
+### 2. Setup Environment
 
-Alternatively connect via your own llm service, e.g. claude etc via
-```json
-{
-  "mcpServers": {
-      "graphql_mcp": {
-            "url": "http://graphql-mcp-server:5001/sse"
-      }
-   }
-}
+Create a `.env` file in the root directory with:
+
+```
+OPENAI_API_KEY=your_openai_api_key
 ```
 
-### Running the Server
+### 3. Run with Cargo
 
-To start the server normally without inspection use
+Run the server, specifying your GraphQL endpoint:
 
 ```bash
 cargo run -- --endpoint http://127.0.0.1:8000
 ```
 
-with your graphql server endpoint.
+The server will be available at: [http://localhost:5000](http://localhost:5000)
 
-This will start the application and serve it at `http://localhost:5000`.
+### 4. (Optional) Or test the full setup - Run with Docker Compose
 
-### Inspecting with Inspector (Optional)
-
-To inspect the server behavior checkout and install [https://github.com/modelcontextprotocol/inspector](https://github.com/modelcontextprotocol/inspector), use the following command instead:
+Launch all services with:
 
 ```bash
-npx @modelcontextprotocol/inspector cargo run
+docker-compose up --build
 ```
 
-Select the **Transport Type**: `STDIO`.
+When all services are running, visit [http://localhost:3000/](http://localhost:3000/) for a demo chat UI with live tool calls and answers.
 
-This will launch the server with Inspector attached for live introspection.
+---
 
+## Usage
 
-## Contributing
+- The **main server** (graphql-mcp) listens on port `5000` by default.
+- To connect your own LLM service (e.g. Claude, OpenAI, etc.), configure your MCP client:
 
-Contributions are welcome! Feel free to open issues or submit pull requests with improvements.
+  ```json
+  {
+    "mcpServers": {
+      "graphql_mcp": {
+        "url": "http://graphql-mcp-server:5001/sse"
+      }
+    }
+  }
+  ```
+
+---
+
+## Configuration
+
+- Set GraphQL endpoint with `--endpoint http://your-endpoint`
+- Set your OpenAI API key in `.env`
+- Exposed ports:
+  - `5000` (GraphQL MCP server)
+  - `3000` (Demo UI)
+
+---
+
+## Inspector Integration (Optional)
+
+To introspect and debug MCP traffic live, use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
+
+```bash
+npx @modelcontextprotocol/inspector http://localhost:5001/sse
+```
+- Select Transport Type: `SSE`
+- This enables live introspection and visualization of MCP traffic.
