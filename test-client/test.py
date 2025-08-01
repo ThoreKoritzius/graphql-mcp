@@ -3,8 +3,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from typing import List, Literal, Optional
-from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, SystemMessage
-from langchain_core.agents import AgentAction
 from langchain_openai import ChatOpenAI
 from mcp_use import MCPClient, MCPAgent
 
@@ -50,12 +48,13 @@ async def startup_event():
     llm = ChatOpenAI(model="gpt-4o-mini", openai_api_key=os.getenv("OPENAI_API_KEY"))
     agent = MCPAgent(llm=llm, client=client, max_steps=30, verbose=True)
 
+@app.get("/style.css")
+async def style_css():
+    return FileResponse("frontend/style.css", media_type="text/css")
+
 @app.get("/")
 async def serve_index():
-    """
-    Serve the local frontend (optional).
-    """
-    return FileResponse("index.html")
+    return FileResponse("frontend/index.html")
 
 @app.post("/ask")
 async def ask(request: Request):
