@@ -48,14 +48,20 @@ async def startup_event():
     llm = ChatOpenAI(model="gpt-4o-mini", openai_api_key=os.getenv("OPENAI_API_KEY"))
     agent = MCPAgent(llm=llm, client=client, max_steps=30, verbose=True)
 
-@app.get("/style.css")
+# frontend
+@app.get("/main.js")
+async def main_js():
+    return FileResponse("frontend/main.js", media_type="application/javascript")
+
+@app.get("/styles.css")
 async def style_css():
-    return FileResponse("frontend/style.css", media_type="text/css")
+    return FileResponse("frontend/styles.css", media_type="text/css")
 
 @app.get("/")
 async def serve_index():
     return FileResponse("frontend/index.html")
 
+# main chat endpoint
 @app.post("/ask")
 async def ask(request: Request):
     params = dict(request.query_params)
