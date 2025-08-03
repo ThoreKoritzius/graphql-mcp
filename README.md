@@ -52,7 +52,7 @@ OPENAI_API_KEY=your_openai_api_key
 Run the server, specifying your GraphQL endpoint:
 
 ```bash
-cargo run -- --endpoint http://127.0.0.1:8000
+cargo run -- --endpoint http://127.0.0.1:3000
 ```
 
 The server will be available at: [http://localhost:5000](http://localhost:5000)

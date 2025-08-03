@@ -8,11 +8,15 @@ services:
     container_name: graphql-mcp-server
     ports:
       - "5001:5001"
+    # add your custom graphql endpoint
     environment:
       - RUST_LOG=debug
-      - ENDPOINT=http://host.docker.internal:8000
+      - ENDPOINT=http://test-graphql-server:8000
     restart: unless-stopped
+    depends_on:
+      - test-graphql-server
 
+  # services to test the graphql mcp functionality
   test-graphql-server:
     build:
       context: ./test-graphql-server
@@ -22,13 +26,16 @@ services:
       - "8000:8000"
     restart: unless-stopped
 
-  test-llm-server:
+  test-client:
     build:
       context: ./test-client
       dockerfile: Dockerfile
-    container_name: test-llm-server
+    container_name: test-client
     ports:
       - "3000:3000"
+    # Set your OpenAI API key here (add to your environment or .env file)
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     restart: unless-stopped
+    depends_on:
+      - graphql-mcp

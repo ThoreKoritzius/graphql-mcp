@@ -8,4 +8,4 @@ USER appuser
 WORKDIR /app
 ENV RUST_LOG=debug
 EXPOSE 5000
-CMD ["cargo", "run", "--", "--endpoint", "http://test-graphql-server:8000"]
+CMD cargo run -- --endpoint "${ENDPOINT}"
