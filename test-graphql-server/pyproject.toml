@@ -10,10 +10,11 @@ packages = [
 
 
 [tool.poetry.dependencies]
-python = ">=3.8,<4.0"
+python = ">=3.9,<4.0"
 strawberry-graphql = "*"
 uvicorn = "*"
 starlette = "*"
+faker = "^37.5.3"
 
 
 [tool.poetry.scripts]
