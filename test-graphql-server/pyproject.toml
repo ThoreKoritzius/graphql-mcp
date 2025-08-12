@@ -1,0 +1,26 @@
+
+[tool.poetry]
+name = "test-graphql-server"
+version = "0.1.0"
+description = "A test GraphQL server using Strawberry, Uvicorn, and Starlette."
+authors = ["Your Name <your.email@example.com>"]
+packages = [
+	{ include = "test_graphql_server" }
+]
+
+
+[tool.poetry.dependencies]
+python = ">=3.8,<4.0"
+strawberry-graphql = "*"
+uvicorn = "*"
+starlette = "*"
+
+
+[tool.poetry.scripts]
+start = "test_graphql_server.main:app"
+
+
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
