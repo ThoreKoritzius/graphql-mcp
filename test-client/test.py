@@ -12,10 +12,12 @@ from starlette.responses import Response
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 import json
-
+from langchain.globals import set_llm_cache
+set_llm_cache(None)
 
 # Initialize FastAPI app
 app = FastAPI()
+LLM_MODEL_NAME = "gpt-4o-mini"
 
 # Pydantic request/response models
 class ChatMessage(BaseModel):
@@ -35,17 +37,14 @@ config = {
     }
 }
 
-# Global MCPAgent
-agent: MCPAgent = None
 
 @app.on_event("startup")
 async def startup_event():
     """
     On startup, initialize MCP client and agent.
     """
-    global agent
     client = MCPClient.from_dict(config)
-    llm = ChatOpenAI(model="gpt-4o-mini", openai_api_key=os.getenv("OPENAI_API_KEY"))
+    llm = ChatOpenAI(model=LLM_MODEL_NAME, openai_api_key=os.getenv("OPENAI_API_KEY"))
     agent = MCPAgent(llm=llm, client=client, max_steps=30, verbose=True)
 
 # frontend
@@ -66,6 +65,7 @@ async def serve_index():
 async def ask(request: Request):
     params = dict(request.query_params)
     stream = params.get("stream", "false").lower() == "true"
+
     try:
         data = await request.json()
     except Exception:
@@ -73,11 +73,19 @@ async def ask(request: Request):
 
     question = data.get("question")
     history = data.get("history", [])
+    llm = data.get("llm", LLM_MODEL_NAME)
 
+    client = MCPClient.from_dict(config)
+    llm = ChatOpenAI(
+        model=LLM_MODEL_NAME,
+        openai_api_key=os.getenv("OPENAI_API_KEY"),
+        cache=False 
+    )
+    fresh_agent = MCPAgent(llm=llm, client=client, max_steps=30, verbose=True)
 
     if stream:
         async def event_generator():
-            async for step in agent.stream(
+            async for step in fresh_agent.stream(
                 question,
                 max_steps=None,
                 manage_connector=True,
@@ -93,7 +101,8 @@ async def ask(request: Request):
                             "type": "tool_call",
                             "tool": getattr(action, 'tool', None),
                             "tool_input": getattr(action, 'tool_input', None),
-                            "observation": observation
+                            "observation": observation,
+                            "llm_model_name": LLM_MODEL_NAME
                         })
                         + "\n\n"
                     )
@@ -109,10 +118,11 @@ async def ask(request: Request):
             yield "event: end\ndata: {}\n\n"
 
         return StreamingResponse(event_generator(), media_type="text/event-stream")
+
     # Non-stream fallback: single result
     tool_calls = []
     final_result = None
-    async for step in agent.stream(
+    async for step in fresh_agent.stream(
         question,
         max_steps=None,
         manage_connector=True,
@@ -122,18 +132,20 @@ async def ask(request: Request):
         if isinstance(step, tuple):  # (AgentAction, str)
             action, observation = step
             tool_calls.append({
+                "type": "tool_call",
                 "tool": getattr(action, 'tool', None),
                 "tool_input": getattr(action, 'tool_input', None),
-                "observation": observation
+                "observation": observation,
+                "llm_model_name": LLM_MODEL_NAME
             })
         else:
-            # The final result (answer string)
             final_result = step
 
     return JSONResponse({
         "result": final_result,
         "tool_calls": tool_calls
     })
+
 # Optional CLI entry point
 if __name__ == "__main__":
     import uvicorn
