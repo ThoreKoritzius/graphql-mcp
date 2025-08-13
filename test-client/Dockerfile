@@ -1,17 +1,20 @@
-# Use official Python runtime as parent image
-FROM python:3.12-slim
 
-WORKDIR /app
 
-# Install system dependencies (in one RUN to maximize cache)
-RUN apt-get update && apt-get install -y gcc --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+# Stage 1: Build with Poetry
 
-# Copy and install python dependencies first to leverage Docker cache
-COPY requirements.txt ./
-RUN pip install --upgrade pip && pip install -r requirements.txt
+# Stage 1: Build with Poetry and bundle venv
 
-# Copy application source code
+# Stage 1: Build with Poetry and bundle venv
+FROM python:3.12-slim AS builder
+RUN pip install --no-cache-dir "poetry>=1.2.0" "poetry-plugin-bundle>=0.2.0"
+WORKDIR /src
 COPY . .
+RUN poetry bundle venv --python=/usr/local/bin/python --only=main /venv
 
-CMD ["uvicorn", "test:app", "--host", "0.0.0.0", "--port", "3000"]
+# Stage 2: Minimal runtime
+FROM python:3.12-slim
+WORKDIR /app
+COPY --from=builder /venv /venv
+COPY test_client/ ./test_client/
+EXPOSE 3000
+ENTRYPOINT ["/venv/bin/uvicorn", "test_client:app", "--host", "0.0.0.0", "--port", "3000"]
