@@ -35,4 +35,5 @@ COPY --from=builder /app/.env /app/.env
 ENV RUST_LOG=debug
 EXPOSE 5000
 USER appuser
-CMD ["/app/graphql-mcp", "--endpoint", "${ENDPOINT}"]
+
+CMD /app/graphql-mcp --endpoint "$ENDPOINT"
