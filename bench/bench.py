@@ -1,11 +1,20 @@
-"""
-Benchmarking of the GraphQL MCP Server
-"""
-
 import pandas as pd
 import requests
 import time
 import json
+import os
+from datetime import datetime
+
+# --- Configuration ---
+LLM_MODEL_NAME = "gpt4.1-mini"
+
+# --- Ensure results directory exists ---
+RESULTS_DIR = "results"
+os.makedirs(RESULTS_DIR, exist_ok=True)
+
+# --- Generate timestamped filename ---
+timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+output_filename = f"{RESULTS_DIR}/result_{timestamp}.csv"
 
 # Load dataset
 data = pd.read_csv("dataset.csv")
@@ -17,12 +26,17 @@ num_tool_calls_list = []
 status_codes = []
 total_input_tokens_list = []
 total_output_tokens_list = []
+llm_model_names = []
 
 for i, item in data.iterrows():
     question = item["question"]
     print(f"({i+1}/{len(data)}) Asking: {question}")
 
-    payload = {"question": question, "stream": False}
+    payload = {
+        "question": question, 
+        "stream": False, 
+        "llm": LLM_MODEL_NAME
+    }
     try:
         t0 = time.time()
         resp = requests.post(
@@ -52,6 +66,7 @@ for i, item in data.iterrows():
     status_codes.append(status_code)
     total_input_tokens_list.append(total_input_tokens)
     total_output_tokens_list.append(total_output_tokens)
+    llm_model_names.append(LLM_MODEL_NAME)
 
 # Add new columns to the original DataFrame
 data["model_response"] = responses
@@ -61,7 +76,8 @@ data["num_tool_calls"] = num_tool_calls_list
 data["status_code"] = status_codes
 data["total_input_tokens"] = total_input_tokens_list
 data["total_output_tokens"] = total_output_tokens_list
+data["llm_model_name"] = llm_model_names
 
-# Save as CSV
-data.to_csv("dataset_with_model_responses.csv", index=False)
-print("Done. Results saved to dataset_with_model_responses.csv.")
+# Save as CSV with timestamp in results directory
+data.to_csv(output_filename, index=False)
+print(f"Done. Results saved to {output_filename}.")
