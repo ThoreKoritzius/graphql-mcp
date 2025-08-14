@@ -1,6 +1,6 @@
 #![allow(dead_code)]
+use crate::common::graphql_client::fetch_query;
 use rmcp::{Error as McpError, ServerHandler, const_string, model::*, schemars, tool};
-use serde_json::{Value, json};
 
 #[derive(Debug, Clone)]
 pub struct Explorer {
@@ -13,63 +13,6 @@ impl Explorer {
         println!("Explorer created for GraphQL endpoint: '{}'", endpoint);
         Ok(Explorer { endpoint })
     }
-
-    /// Core fetch+parse. Returns either the payload Data or a CallToolResult error (to forward)
-    async fn fetch_query(&self, graphql_query: &str) -> Result<Value, CallToolResult> {
-        let payload = json!({ "query": graphql_query });
-
-        let client = reqwest::Client::new();
-        let resp = match client
-            .post(&self.endpoint)
-            .header("Content-Type", "application/json")
-            .json(&payload)
-            .send()
-            .await
-        {
-            Ok(r) => r,
-            Err(e) => {
-                let msg = format!(
-                    "Could not contact GraphQL endpoint at '{}'.\nNetwork error: {}",
-                    self.endpoint, e
-                );
-                return Err(CallToolResult::error(vec![Content::text(msg)]));
-            }
-        };
-
-        let status = resp.status();
-        let body_text = match resp.text().await {
-            Ok(t) => t,
-            Err(e) => {
-                let msg = format!(
-                    "GraphQL endpoint '{}' responded, but reading the response failed: {}",
-                    self.endpoint, e
-                );
-                return Err(CallToolResult::error(vec![Content::text(msg)]));
-            }
-        };
-
-        if !status.is_success() {
-            let msg = format!(
-                "GraphQL endpoint '{}' returned HTTP {}: {}",
-                self.endpoint, status, body_text
-            );
-            return Err(CallToolResult::error(vec![Content::text(msg)]));
-        }
-
-        let json: Value = match serde_json::from_str(&body_text) {
-            Ok(j) => j,
-            Err(e) => {
-                let msg = format!(
-                    "Invalid JSON received from endpoint '{}': {}\nRaw response:\n{}",
-                    self.endpoint, e, body_text
-                );
-                return Err(CallToolResult::error(vec![Content::text(msg)]));
-            }
-        };
-
-        Ok(json)
-    }
-
     #[tool(description = "Return all available type names by introspecting the GraphQL endpoint")]
     async fn get_type_overview(&self) -> Result<CallToolResult, McpError> {
         let introspection = r#"
@@ -82,7 +25,7 @@ impl Explorer {
             }
         "#;
 
-        let json = match self.fetch_query(introspection).await {
+        let json = match fetch_query(&self.endpoint, introspection).await {
             Ok(j) => j,
             Err(err) => return Ok(err),
         };
@@ -91,7 +34,7 @@ impl Explorer {
             .pointer("/data/__schema/types")
             .and_then(|v| v.as_array())
         {
-            Some(t) => t,
+            Some(arr) => arr,
             None => {
                 let msg = format!(
                     "Schema types were missing in GraphQL response from '{}'.\nRaw response:\n{}",
@@ -109,8 +52,7 @@ impl Explorer {
             .collect();
 
         let output = format!(
-            "These are all available type names in '{}':\n{}",
-            self.endpoint,
+            "These are all available types in the Schema:\n{}",
             names.join("\n")
         );
 
@@ -155,7 +97,7 @@ impl Explorer {
             typename = type_name
         );
 
-        let json = match self.fetch_query(&introspection).await {
+        let json = match fetch_query(&self.endpoint, &introspection).await {
             Ok(j) => j,
             Err(err) => return Ok(err),
         };
@@ -187,7 +129,7 @@ impl Explorer {
         )]
         query: String,
     ) -> Result<CallToolResult, McpError> {
-        let json = match self.fetch_query(&query).await {
+        let json = match fetch_query(&self.endpoint, &query).await {
             Ok(j) => j,
             Err(err) => return Ok(err),
         };
@@ -206,7 +148,7 @@ impl ServerHandler for Explorer {
             protocol_version: ProtocolVersion::V_2024_11_05,
             capabilities: ServerCapabilities::builder().enable_tools().build(),
             server_info: Implementation::from_build_env(),
-            instructions: Some("This server lets you connect to graphql".to_string()),
+            instructions: Some("This server lets you connect to a graphql server".to_string()),
         }
     }
 }
