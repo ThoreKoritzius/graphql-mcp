@@ -3,15 +3,14 @@ import enum
 from typing import List
 from strawberry.asgi import GraphQL
 from faker import Faker
+import random
 
+FAKER_SEED = 42
 faker = Faker()
+faker.seed_instance(FAKER_SEED)
+random.seed(FAKER_SEED)
 
-
-
-# --- BEGIN MASSIVE SCHEMA ---
-def random_list(cls, min=1, max=5):
-    return [cls() for _ in range(faker.random_int(min=min, max=max))]
-
+# ---- ENUMS ----
 @strawberry.enum
 class BookFormat(enum.Enum):
     HARDCOVER = "HARDCOVER"
@@ -28,330 +27,400 @@ class Language(enum.Enum):
     IT = "IT"
     ZH = "ZH"
 
+# ---- DATA CLASSES ----
+
 @strawberry.type
 class Location:
-    @strawberry.field
-    def city(self) -> str: return faker.city()
-    @strawberry.field
-    def country(self) -> str: return faker.country()
-    @strawberry.field
-    def address(self) -> str: return faker.address()
+    city: str
+    country: str
+    address: str
 
 @strawberry.type
 class Award:
-    @strawberry.field
-    def name(self) -> str: return faker.word().title() + " Award"
-    @strawberry.field
-    def year(self) -> int: return int(faker.year())
+    name: str
+    year: int
 
 @strawberry.type
 class Review:
-    @strawberry.field
-    def reviewer(self) -> str: return faker.name()
-    @strawberry.field
-    def rating(self) -> float: return round(faker.pyfloat(left_digits=1, right_digits=1, positive=True, min_value=1, max_value=5), 1)
-    @strawberry.field
-    def comment(self) -> str: return faker.sentence()
+    reviewer: str
+    rating: float
+    comment: str
 
 @strawberry.type
 class Genre:
-    @strawberry.field
-    def name(self) -> str: return faker.word().title()
-    @strawberry.field
-    def description(self) -> str: return faker.text(max_nb_chars=60)
+    name: str
+    description: str
 
 @strawberry.type
 class Employee:
-    @strawberry.field
-    def name(self) -> str: return faker.name()
-    @strawberry.field
-    def position(self) -> str: return faker.job()
-    @strawberry.field
-    def email(self) -> str: return faker.email()
+    name: str
+    position: str
+    email: str
 
 @strawberry.type
 class Store:
-    @strawberry.field
-    def name(self) -> str: return faker.company()
-    @strawberry.field
-    def location(self) -> Location: return Location()
-    @strawberry.field
-    def employees(self) -> List[Employee]: return random_list(Employee, 2, 10)
+    name: str
+    location: Location
+    employees: List[Employee]
 
 @strawberry.type
 class Shipment:
-    @strawberry.field
-    def tracking_number(self) -> str: return faker.uuid4()
-    @strawberry.field
-    def shipped_date(self) -> str: return faker.date()
-    @strawberry.field
-    def delivered_date(self) -> str: return faker.date()
+    tracking_number: str
+    shipped_date: str
+    delivered_date: str
 
 @strawberry.type
 class Warehouse:
-    @strawberry.field
-    def name(self) -> str: return faker.company()
-    @strawberry.field
-    def location(self) -> Location: return Location()
-    @strawberry.field
-    def shipments(self) -> List[Shipment]: return random_list(Shipment, 1, 5)
+    name: str
+    location: Location
+    shipments: List[Shipment]
 
 @strawberry.type
 class Membership:
-    @strawberry.field
-    def member_id(self) -> str: return faker.uuid4()
-    @strawberry.field
-    def start_date(self) -> str: return faker.date()
-    @strawberry.field
-    def end_date(self) -> str: return faker.date()
+    member_id: str
+    start_date: str
+    end_date: str
 
 @strawberry.type
 class Subscription:
-    @strawberry.field
-    def type(self) -> str: return faker.word()
-    @strawberry.field
-    def active(self) -> bool: return faker.boolean()
+    type: str
+    active: bool
 
 @strawberry.type
 class Agency:
-    @strawberry.field
-    def name(self) -> str: return faker.company()
-    @strawberry.field
-    def clients(self) -> List["Client"]: return random_list(Client, 1, 5)
+    name: str
+    clients: List["Client"]
 
 @strawberry.type
 class Client:
-    @strawberry.field
-    def name(self) -> str: return faker.name()
-    @strawberry.field
-    def agency(self) -> Agency: return Agency()
+    name: str
+    agency: "Agency" = None  # Filled after creation
 
 @strawberry.type
 class Currency:
-    @strawberry.field
-    def code(self) -> str: return faker.currency_code()
-    @strawberry.field
-    def name(self) -> str: return faker.currency_name()
+    code: str
+    name: str
 
 @strawberry.type
 class Contract:
-    @strawberry.field
-    def contract_id(self) -> str: return faker.uuid4()
-    @strawberry.field
-    def signed_date(self) -> str: return faker.date()
-    @strawberry.field
-    def parties(self) -> List[str]: return [faker.company() for _ in range(faker.random_int(min=2, max=5))]
+    contract_id: str
+    signed_date: str
+    parties: List[str]
 
 @strawberry.type
 class Event:
-    @strawberry.field
-    def name(self) -> str: return faker.word().title() + " Event"
-    @strawberry.field
-    def date(self) -> str: return faker.date()
-    @strawberry.field
-    def location(self) -> Location: return Location()
+    name: str
+    date: str
+    location: Location
 
 @strawberry.type
 class LanguageInfo:
-    @strawberry.field
-    def language(self) -> Language:
-        return faker.random_element(list(Language))
-    @strawberry.field
-    def proficiency(self) -> str: return faker.word()
-
-# ... add 80+ more types in similar fashion ...
-
-# Example: Generate many types dynamically
-for i in range(20, 101):
-    exec(f"""
-@strawberry.type
-class Type{i}:
-    @strawberry.field
-    def field1(self) -> str: return faker.word()
-    @strawberry.field
-    def field2(self) -> int: return faker.random_int(min=1, max=100)
-    @strawberry.field
-    def field3(self) -> bool: return faker.boolean()
-    @strawberry.field
-    def field4(self) -> float: return faker.pyfloat(left_digits=2, right_digits=2, positive=True)
-    @strawberry.field
-    def field5(self) -> str: return faker.sentence()
-    """)
+    language: Language
+    proficiency: str
 
 @strawberry.type
 class Author:
-    @strawberry.field
-    def name(self) -> str: return faker.name()
-    @strawberry.field
-    def bio(self) -> str: return faker.text(max_nb_chars=120)
-    @strawberry.field
-    def location(self) -> Location: return Location()
-    @strawberry.field
-    def awards(self) -> List[Award]: return random_list(Award, 0, 3)
-    @strawberry.field
-    def books(self) -> List["Book"]: return random_list(Book, 1, 5)
-    @strawberry.field
-    def agency(self) -> Agency: return Agency()
+    name: str
+    bio: str
+    location: Location
+    awards: List[Award]
+    agency: Agency
+    books: List["Book"] = None  # Filled after creation
 
 @strawberry.type
 class Publisher:
-    @strawberry.field
-    def name(self) -> str: return faker.company()
-    @strawberry.field
-    def location(self) -> Location: return Location()
-    @strawberry.field
-    def books(self) -> List["Book"]: return random_list(Book, 2, 8)
-    @strawberry.field
-    def employees(self) -> List[Employee]: return random_list(Employee, 5, 20)
-    @strawberry.field
-    def warehouses(self) -> List[Warehouse]: return random_list(Warehouse, 1, 3)
+    name: str
+    location: Location
+    books: List["Book"] = None  # Filled after creation
+    employees: List[Employee]
+    warehouses: List[Warehouse]
 
 @strawberry.type
 class Distributor:
-    @strawberry.field
-    def name(self) -> str: return faker.company()
-    @strawberry.field
-    def location(self) -> Location: return Location()
-    @strawberry.field
-    def owned_books(self) -> List["Book"]: return random_list(Book, 3, 10)
-    @strawberry.field
-    def contracts(self) -> List[Contract]: return random_list(Contract, 1, 5)
+    name: str
+    location: Location
+    owned_books: List["Book"] = None  # Filled after creation
+    contracts: List[Contract]
 
 @strawberry.type
 class Seller:
-    @strawberry.field
-    def name(self) -> str: return faker.company()
-    @strawberry.field
-    def location(self) -> Location: return Location()
-    @strawberry.field
-    def books_for_sale(self) -> List["Book"]: return random_list(Book, 1, 6)
-    @strawberry.field
-    def store(self) -> Store: return Store()
+    name: str
+    location: Location
+    books_for_sale: List["Book"] = None  # Filled after creation
+    store: Store
 
 @strawberry.type
 class Book:
-    @strawberry.field
-    def title(self) -> str: return faker.sentence(nb_words=4)
-    @strawberry.field
-    def author(self) -> Author: return Author()
-    @strawberry.field
-    def publisher(self) -> Publisher: return Publisher()
-    @strawberry.field
-    def distributor(self) -> Distributor: return Distributor()
-    @strawberry.field
-    def sellers(self) -> List[Seller]: return random_list(Seller, 1, 4)
-    @strawberry.field
-    def genre(self) -> Genre: return Genre()
-    @strawberry.field
-    def published_year(self) -> int: return int(faker.year())
-    @strawberry.field
-    def format(self) -> BookFormat:
-        return faker.random_element(list(BookFormat))
-    @strawberry.field
-    def language(self) -> Language:
-        return faker.random_element(list(Language))
-    @strawberry.field
-    def awards(self) -> List[Award]: return random_list(Award, 0, 2)
-    @strawberry.field
-    def reviews(self) -> List[Review]: return random_list(Review, 0, 5)
-    @strawberry.field
-    def events(self) -> List[Event]: return random_list(Event, 0, 2)
-    @strawberry.field
-    def warehouse(self) -> Warehouse: return Warehouse()
-    @strawberry.field
-    def shipments(self) -> List[Shipment]: return random_list(Shipment, 0, 3)
-    @strawberry.field
-    def membership(self) -> Membership: return Membership()
-    @strawberry.field
-    def subscription(self) -> Subscription: return Subscription()
-    @strawberry.field
-    def agency(self) -> Agency: return Agency()
-    @strawberry.field
-    def contract(self) -> Contract: return Contract()
-    @strawberry.field
-    def currency(self) -> Currency: return Currency()
-    @strawberry.field
-    def language_info(self) -> LanguageInfo: return LanguageInfo()
+    title: str
+    author: Author
+    publisher: Publisher
+    distributor: Distributor
+    sellers: List[Seller]
+    genre: Genre
+    published_year: int
+    format: BookFormat
+    language: Language
+    awards: List[Award]
+    reviews: List[Review]
+    events: List[Event]
+    warehouse: Warehouse
+    shipments: List[Shipment]
+    membership: Membership
+    subscription: Subscription
+    agency: Agency
+    contract: Contract
+    currency: Currency
+    language_info: LanguageInfo
 
+# ---- PRE-GENERATE DATA ----
 
-# Query definition
+NUM_BOOKS = 8
+NUM_AUTHORS = 5
+NUM_PUBLISHERS = 3
+NUM_DISTRIBUTORS = 3
+NUM_SELLERS = 4
+NUM_GENRES = 4
+NUM_AWARDS = 4
+NUM_REVIEWS = 6
+NUM_EMPLOYEES = 10
+NUM_STORES = 2
+NUM_SHIPMENTS = 6
+NUM_WAREHOUSES = 2
+NUM_MEMBERSHIPS = 4
+NUM_SUBSCRIPTIONS = 3
+NUM_AGENCIES = 2
+NUM_CLIENTS = 3
+NUM_CURRENCIES = 2
+NUM_CONTRACTS = 2
+NUM_EVENTS = 2
+NUM_LANGUAGEINFOS = 3
+
+def gen_locations(n):
+    return [Location(city=faker.city(), country=faker.country(), address=faker.address()) for _ in range(n)]
+
+LOCATIONS = gen_locations(NUM_PUBLISHERS + NUM_DISTRIBUTORS + NUM_SELLERS + NUM_STORES + NUM_WAREHOUSES)
+
+AWARDS = [Award(name=faker.word().title() + " Award", year=int(faker.year())) for _ in range(NUM_AWARDS)]
+REVIEWS = [Review(reviewer=faker.name(), rating=round(faker.random.uniform(1,5),1), comment=faker.sentence()) for _ in range(NUM_REVIEWS)]
+GENRES = [Genre(name=faker.word().title(), description=faker.text(max_nb_chars=60)) for _ in range(NUM_GENRES)]
+EMPLOYEES = [Employee(name=faker.name(), position=faker.job(), email=faker.email()) for _ in range(NUM_EMPLOYEES)]
+SHIPMENTS = [Shipment(tracking_number=faker.uuid4(), shipped_date=faker.date(), delivered_date=faker.date()) for _ in range(NUM_SHIPMENTS)]
+MEMBERSHIPS = [Membership(member_id=faker.uuid4(), start_date=faker.date(), end_date=faker.date()) for _ in range(NUM_MEMBERSHIPS)]
+SUBSCRIPTIONS = [Subscription(type=faker.word(), active=faker.boolean()) for _ in range(NUM_SUBSCRIPTIONS)]
+CURRENCIES = [Currency(code=faker.currency_code(), name=faker.currency_name()) for _ in range(NUM_CURRENCIES)]
+CONTRACTS = [Contract(
+    contract_id=faker.uuid4(), signed_date=faker.date(), parties=[faker.company() for _ in range(2)]
+) for _ in range(NUM_CONTRACTS)]
+EVENTS = [Event(name=faker.word().title() + " Event", date=faker.date(), location=LOCATIONS[i%len(LOCATIONS)]) for i in range(NUM_EVENTS)]
+LANGUAGEINFOS = [LanguageInfo(language=Language.EN, proficiency=faker.word()) for _ in range(NUM_LANGUAGEINFOS)]
+
+# Stores and Warehouses
+STORES = [Store(name=faker.company(), location=LOCATIONS[NUM_PUBLISHERS+i], employees=EMPLOYEES[i*2:(i+1)*2]) for i in range(NUM_STORES)]
+WAREHOUSES = [Warehouse(name=faker.company(), location=LOCATIONS[NUM_PUBLISHERS+NUM_DISTRIBUTORS+i], shipments=SHIPMENTS[i*3:(i+1)*3]) for i in range(NUM_WAREHOUSES)]
+
+# Agencies/Clients
+AGENCIES = []
+CLIENTS = []
+for i in range(NUM_AGENCIES):
+    CL = [Client(name=faker.name()) for _ in range(NUM_CLIENTS)]
+    AGENCIES.append(Agency(name=faker.company(), clients=CL))
+    for c in CL:
+        c.agency = AGENCIES[-1]
+    CLIENTS.extend(CL)
+
+# Authors (empty books list for now, will fill later after Book creation)
+AUTHORS = [
+    Author(
+        name=faker.name(),
+        bio=faker.text(max_nb_chars=120),
+        location=LOCATIONS[i%len(LOCATIONS)],
+        awards=[AWARDS[i%len(AWARDS)]],
+        agency=AGENCIES[i%len(AGENCIES)],
+    )
+    for i in range(NUM_AUTHORS)
+]
+
+# Publishers (empty books list for now, will fill later)
+PUBLISHERS = [
+    Publisher(
+        name=faker.company(),
+        location=LOCATIONS[i%len(LOCATIONS)],
+        employees=EMPLOYEES[i*3:(i+1)*3],
+        warehouses=WAREHOUSES
+    )
+    for i in range(NUM_PUBLISHERS)
+]
+
+# Distributors (empty owned_books for now)
+DISTRIBUTORS = [
+    Distributor(
+        name=faker.company(),
+        location=LOCATIONS[(NUM_PUBLISHERS+i)%len(LOCATIONS)],
+        contracts=CONTRACTS,
+    )
+    for i in range(NUM_DISTRIBUTORS)
+]
+
+# Sellers (empty books_for_sale for now)
+SELLERS = [
+    Seller(
+        name=faker.company(),
+        location=LOCATIONS[(NUM_PUBLISHERS+NUM_DISTRIBUTORS+i)%len(LOCATIONS)],
+        store=STORES[i%len(STORES)],
+    )
+    for i in range(NUM_SELLERS)
+]
+
+# Now, create the books, and fill in all references!
+BOOKS = []
+for i in range(NUM_BOOKS):
+    # Distribute related objects round-robin
+    author = AUTHORS[i % NUM_AUTHORS]
+    publisher = PUBLISHERS[i % NUM_PUBLISHERS]
+    distributor = DISTRIBUTORS[i % NUM_DISTRIBUTORS]
+    sellers = [SELLERS[i % NUM_SELLERS]]
+    awards = [AWARDS[i % len(AWARDS)]]
+    reviews = [REVIEWS[i % len(REVIEWS)]]
+    events = [EVENTS[i % len(EVENTS)]]
+    warehouse = WAREHOUSES[i % len(WAREHOUSES)]
+    shipments = [SHIPMENTS[i % len(SHIPMENTS)]]
+    membership = MEMBERSHIPS[i % len(MEMBERSHIPS)]
+    subscription = SUBSCRIPTIONS[i % len(SUBSCRIPTIONS)]
+    agency = author.agency
+    contract = CONTRACTS[i % len(CONTRACTS)]
+    currency = CURRENCIES[i%len(CURRENCIES)]
+    language_info = LANGUAGEINFOS[i % len(LANGUAGEINFOS)]
+    genre = GENRES[i % len(GENRES)]
+    
+    book = Book(
+        title=faker.sentence(nb_words=4),
+        author=author,
+        publisher=publisher,
+        distributor=distributor,
+        sellers=sellers,
+        genre=genre,
+        published_year=int(faker.year()),
+        format=BookFormat.HARDCOVER,
+        language=Language.EN,
+        awards=awards,
+        reviews=reviews,
+        events=events,
+        warehouse=warehouse,
+        shipments=shipments,
+        membership=membership,
+        subscription=subscription,
+        agency=agency,
+        contract=contract,
+        currency=currency,
+        language_info=language_info,
+    )
+    BOOKS.append(book)
+
+# Fill backrefs
+for a in AUTHORS:
+    a.books = [b for b in BOOKS if b.author is a]
+for p in PUBLISHERS:
+    p.books = [b for b in BOOKS if b.publisher is p]
+for d in DISTRIBUTORS:
+    d.owned_books = [b for b in BOOKS if b.distributor is d]
+for s in SELLERS:
+    s.books_for_sale = [b for b in BOOKS if s in b.sellers]
+
+# ---- QUERY AND MUTATION ----
+
 @strawberry.type
 class Query:
     @strawberry.field
-    def hello(self) -> str:
-        return faker.sentence()
-
-    @strawberry.field
     def books(self) -> List[Book]:
-        return [Book() for _ in range(faker.random_int(min=5, max=20))]
+        return BOOKS
+
     @strawberry.field
     def authors(self) -> List[Author]:
-        return [Author() for _ in range(faker.random_int(min=5, max=20))]
+        return AUTHORS
+
     @strawberry.field
     def publishers(self) -> List[Publisher]:
-        return [Publisher() for _ in range(faker.random_int(min=3, max=10))]
+        return PUBLISHERS
+
     @strawberry.field
     def distributors(self) -> List[Distributor]:
-        return [Distributor() for _ in range(faker.random_int(min=2, max=8))]
+        return DISTRIBUTORS
+
     @strawberry.field
     def sellers(self) -> List[Seller]:
-        return [Seller() for _ in range(faker.random_int(min=5, max=15))]
+        return SELLERS
+
     @strawberry.field
     def genres(self) -> List[Genre]:
-        return [Genre() for _ in range(faker.random_int(min=5, max=15))]
+        return GENRES
+
     @strawberry.field
     def awards(self) -> List[Award]:
-        return [Award() for _ in range(faker.random_int(min=2, max=10))]
+        return AWARDS
+
     @strawberry.field
     def reviews(self) -> List[Review]:
-        return [Review() for _ in range(faker.random_int(min=5, max=20))]
+        return REVIEWS
+
     @strawberry.field
     def stores(self) -> List[Store]:
-        return [Store() for _ in range(faker.random_int(min=3, max=10))]
+        return STORES
+
     @strawberry.field
     def employees(self) -> List[Employee]:
-        return [Employee() for _ in range(faker.random_int(min=10, max=30))]
+        return EMPLOYEES
+
     @strawberry.field
     def shipments(self) -> List[Shipment]:
-        return [Shipment() for _ in range(faker.random_int(min=5, max=15))]
+        return SHIPMENTS
+
     @strawberry.field
     def warehouses(self) -> List[Warehouse]:
-        return [Warehouse() for _ in range(faker.random_int(min=2, max=6))]
+        return WAREHOUSES
+
     @strawberry.field
     def memberships(self) -> List[Membership]:
-        return [Membership() for _ in range(faker.random_int(min=5, max=15))]
+        return MEMBERSHIPS
+
     @strawberry.field
     def subscriptions(self) -> List[Subscription]:
-        return [Subscription() for _ in range(faker.random_int(min=5, max=15))]
+        return SUBSCRIPTIONS
+
     @strawberry.field
     def agencies(self) -> List[Agency]:
-        return [Agency() for _ in range(faker.random_int(min=2, max=8))]
+        return AGENCIES
+
     @strawberry.field
     def clients(self) -> List[Client]:
-        return [Client() for _ in range(faker.random_int(min=5, max=20))]
+        return CLIENTS
+
     @strawberry.field
     def currencies(self) -> List[Currency]:
-        return [Currency() for _ in range(faker.random_int(min=3, max=10))]
+        return CURRENCIES
+
     @strawberry.field
     def contracts(self) -> List[Contract]:
-        return [Contract() for _ in range(faker.random_int(min=5, max=15))]
+        return CONTRACTS
+
     @strawberry.field
     def events(self) -> List[Event]:
-        return [Event() for _ in range(faker.random_int(min=2, max=8))]
+        return EVENTS
+
     @strawberry.field
     def language_infos(self) -> List[LanguageInfo]:
-        return [LanguageInfo() for _ in range(faker.random_int(min=5, max=15))]
+        return LANGUAGEINFOS
 
+    @strawberry.field
+    def hello(self) -> str:
+        return "Hello, fixed world!"
 
-# Mutation example
 @strawberry.type
 class Mutation:
     @strawberry.mutation
     def add_book(self, title: str, author_name: str, publisher_name: str) -> Book:
-        # Just return a Book with random data, ignoring input for faker-only demo
-        return Book()
+        # No-op: Just return first book (demo purposes)
+        return BOOKS[0]
 
-# Create schema and app
 schema = strawberry.Schema(query=Query, mutation=Mutation)
-graphql_app = GraphQL(schema)
-app = graphql_app
+app = GraphQL(schema)
+graphql_app = app
