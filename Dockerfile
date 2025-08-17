@@ -26,14 +26,25 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 
 # Final minimal image
 FROM debian:bookworm-slim AS runtime
-# Install OpenSSL 3 for libssl.so.3 and create appuser in one layer
-RUN apt-get update && apt-get install -y libssl3 && rm -rf /var/lib/apt/lists/* && useradd -m appuser
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    libssl3 \
+ && update-ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m appuser
+
 WORKDIR /app
 COPY --from=builder /app/target/release/graphql-mcp /app/graphql-mcp
-COPY --from=builder /app/.env /app/.env 
-# If you use an .env file
+COPY --from=builder /app/.env /app/.env
+
 ENV RUST_LOG=debug
-EXPOSE 5000
+EXPOSE 5001
+
 USER appuser
 
 CMD /app/graphql-mcp --endpoint "$ENDPOINT"
