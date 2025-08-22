@@ -6,35 +6,40 @@ import os
 from datetime import datetime
 
 # --- Configuration ---
-LLM_MODEL_NAME = "gpt4.1-mini"
+LLM_MODEL_NAME = "gpt-4.1"
 
 # --- Ensure results directory exists ---
 RESULTS_DIR = "results"
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
-# --- Generate timestamped filename ---
+# --- Generate timestamped filename (this file will be updated incrementally) ---
 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 output_filename = f"{RESULTS_DIR}/result_{timestamp}.csv"
 
 # Load dataset
 data = pd.read_csv("dataset.csv")
 
-responses = []
-latencies = []
-tool_calls_list = []
-num_tool_calls_list = []
-status_codes = []
-total_input_tokens_list = []
-total_output_tokens_list = []
-llm_model_names = []
+# --- Pre-create columns with default values to later update in-place ---
+data["model_response"] = ""
+data["latency_seconds"] = 0.0
+data["tool_calls"] = ""
+data["num_tool_calls"] = 0
+data["status_code"] = 0
+data["total_input_tokens"] = 0
+data["total_output_tokens"] = 0
+data["llm_model_name"] = ""
 
+# Save an initial version so that the file exists
+data.to_csv(output_filename, index=False)
+
+# Process each row, update intermediate progress and re-save the file
 for i, item in data.iterrows():
     question = item["question"]
     print(f"({i+1}/{len(data)}) Asking: {question}")
 
     payload = {
-        "question": question, 
-        "stream": False, 
+        "question": question,
+        "stream": False,
         "llm": LLM_MODEL_NAME
     }
     try:
@@ -59,25 +64,20 @@ for i, item in data.iterrows():
         tool_calls = []
         total_input_tokens  = -1
         total_output_tokens = -1
-    responses.append(answer)
-    latencies.append(t1 - t0)
-    tool_calls_list.append(json.dumps(tool_calls, ensure_ascii=False))
-    num_tool_calls_list.append(len(tool_calls) if isinstance(tool_calls, list) else 0)
-    status_codes.append(status_code)
-    total_input_tokens_list.append(total_input_tokens)
-    total_output_tokens_list.append(total_output_tokens)
-    llm_model_names.append(LLM_MODEL_NAME)
 
-# Add new columns to the original DataFrame
-data["model_response"] = responses
-data["latency_seconds"] = latencies
-data["tool_calls"] = tool_calls_list
-data["num_tool_calls"] = num_tool_calls_list
-data["status_code"] = status_codes
-data["total_input_tokens"] = total_input_tokens_list
-data["total_output_tokens"] = total_output_tokens_list
-data["llm_model_name"] = llm_model_names
+    latency = t1 - t0
 
-# Save as CSV with timestamp in results directory
-data.to_csv(output_filename, index=False)
-print(f"Done. Results saved to {output_filename}.")
+    # Update the row with results
+    data.at[i, "model_response"] = answer
+    data.at[i, "latency_seconds"] = latency
+    data.at[i, "tool_calls"] = json.dumps(tool_calls, ensure_ascii=False)
+    data.at[i, "num_tool_calls"] = len(tool_calls) if isinstance(tool_calls, list) else 0
+    data.at[i, "status_code"] = status_code
+    data.at[i, "total_input_tokens"] = total_input_tokens
+    data.at[i, "total_output_tokens"] = total_output_tokens
+    data.at[i, "llm_model_name"] = LLM_MODEL_NAME
+
+    # Save intermediate progress to the same file after processing each row
+    data.to_csv(output_filename, index=False)
+
+print(f"Done. Results saved (and updated incrementally) to {output_filename}.")

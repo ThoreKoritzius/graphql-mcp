@@ -74,7 +74,6 @@ impl Explorer {
         let field = match field {
             Some(f) => f.clone(),
             None => {
-                // Propagate a clear CallToolResult::error so callers/tooling don't have double-wrapped errors.
                 let available = fields
                     .map(|a| {
                         a.iter()
@@ -90,8 +89,6 @@ impl Explorer {
                 return Ok(CallToolResult::error(vec![Content::text(msg)]));
             }
         };
-
-        // Build signature with unwrapped named types
         let mut signature_args: Vec<Value> = Vec::new();
         let mut input_objects: HashMap<String, Value> = HashMap::new();
 
