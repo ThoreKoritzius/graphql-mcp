@@ -27,6 +27,10 @@ data["num_tool_calls"] = 0
 data["status_code"] = 0
 data["total_input_tokens"] = 0
 data["total_output_tokens"] = 0
+data["total_tokens"] = 0
+data["prompt_tokens"] = 0
+data["completion_tokens"] = 0
+data["total_cost"] = 0.0
 data["llm_model_name"] = ""
 
 # Save an initial version so that the file exists
@@ -54,9 +58,16 @@ for i, item in data.iterrows():
         resp.raise_for_status()
         answer_json = resp.json()
         answer = answer_json.get("result")
-        total_input_tokens  = answer_json.get("total_input_tokens")
-        total_output_tokens = answer_json.get("total_output_tokens")
         tool_calls = answer_json.get("tool_calls", [])
+        usage_metadata = answer_json.get("usage_metadata", {})
+
+        total_input_tokens  = usage_metadata.get("prompt_tokens")
+        total_output_tokens = usage_metadata.get("completion_tokens")
+        total_tokens        = usage_metadata.get("total_tokens")
+        prompt_tokens       = usage_metadata.get("prompt_tokens")
+        completion_tokens   = usage_metadata.get("completion_tokens")
+        total_cost          = usage_metadata.get("total_cost")
+
     except Exception as e:
         t1 = time.time()
         status_code = getattr(e.response, 'status_code', None) if hasattr(e, 'response') else None
@@ -64,6 +75,10 @@ for i, item in data.iterrows():
         tool_calls = []
         total_input_tokens  = -1
         total_output_tokens = -1
+        total_tokens        = -1
+        prompt_tokens       = -1
+        completion_tokens   = -1
+        total_cost          = -1.0
 
     latency = t1 - t0
 
@@ -75,9 +90,13 @@ for i, item in data.iterrows():
     data.at[i, "status_code"] = status_code
     data.at[i, "total_input_tokens"] = total_input_tokens
     data.at[i, "total_output_tokens"] = total_output_tokens
+    data.at[i, "total_tokens"] = total_tokens
+    data.at[i, "prompt_tokens"] = prompt_tokens
+    data.at[i, "completion_tokens"] = completion_tokens
+    data.at[i, "total_cost"] = total_cost
     data.at[i, "llm_model_name"] = LLM_MODEL_NAME
 
-    # Save intermediate progress to the same file after processing each row
+    # Save intermediate progress
     data.to_csv(output_filename, index=False)
-
+    break
 print(f"Done. Results saved (and updated incrementally) to {output_filename}.")
