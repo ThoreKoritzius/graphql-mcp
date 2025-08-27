@@ -98,5 +98,5 @@ for i, item in data.iterrows():
 
     # Save intermediate progress
     data.to_csv(output_filename, index=False)
-    break
+
 print(f"Done. Results saved (and updated incrementally) to {output_filename}.")
