@@ -38,6 +38,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.ticker as mtick
 import seaborn as sns
+from matplotlib.ticker import FuncFormatter
 
 # Use a clean, professional style.
 #plt.style.use("seaborn")
@@ -342,7 +343,131 @@ def main(config, dataset_name="", drop_unrelated=True):
     plot_stacked_tool_calls_by_category(experiments)
     plot_overall_tool_call_frequency(experiments)
     plot_category_stats_box(experiments, dataset_name)
+    plot_metrics_subplots(experiments, dataset_name)
     print("All plots have been generated and saved in the 'plots' folder.")
+
+def plot_metrics_subplots(experiments, dataset_name):
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import seaborn as sns
+    import matplotlib.patches as mpatches
+
+    ensure_save_dir(SAVE_DIR)  # make sure folder exists
+
+    # Define metrics: (col, display_name, is_percentage)
+    metrics = [
+        ("num_tool_calls", "Tool Calls", False),
+        ("success", "Success (%)", True),            # show as percent
+        ("total_tokens", "Total Tokens", False),
+        ("latency_seconds", "Latency (s)", False),
+    ]
+
+    # Build small table: rows=experiment, cols=metric_display
+    labels = list(experiments.keys())
+    data = {lab: {} for lab in labels}
+    for lab, df in experiments.items():
+        for col, disp, is_pct in metrics:
+            if col in df.columns:
+                val = df[col].mean()
+            else:
+                val = 0.0
+            # convert success to percent for readability
+            if is_pct:
+                val = float(val) * 100.0
+            data[lab][disp] = val
+    df_plot = pd.DataFrame.from_dict(data, orient="index")  # index = experiments
+
+    # Color palette per experiment
+    palette = sns.color_palette("Set2", n_colors=len(labels))
+
+    # Human friendly formatter for bar annotations / ticks
+    def short_fmt(x):
+        x = float(x)
+        absx = abs(x)
+        if absx >= 1_000_000_000:
+            return f"{x/1_000_000_000:.1f}B"
+        if absx >= 1_000_000:
+            return f"{x/1_000_000:.1f}M"
+        if absx >= 1_000:
+            return f"{x/1_000:.1f}K"
+        # show integer if it's effectively integer
+        if abs(x - int(x)) < 1e-6:
+            return f"{int(x)}"
+        return f"{x:.1f}"
+
+    # Plot setup: 2x2 subplots for 4 metrics
+    fig, axs = plt.subplots(2, 2, figsize=(16, 9))
+    axs = axs.flatten()
+
+    # Per-subplot styling values
+    title_font = {"fontsize": 20, "fontweight": "bold"}
+    label_fontsize = 16
+    tick_fontsize = 14
+    annotation_fs = 12
+    bar_edge = "black"
+
+    # For consistent legend: create patches once
+    legend_patches = [mpatches.Patch(color=palette[i], label=labels[i]) for i in range(len(labels))]
+
+    for i, (col, disp, is_pct) in enumerate(metrics):
+        ax = axs[i]
+        values = df_plot[disp].values
+        x = np.arange(len(labels))
+
+        # Draw bars (one bar per experiment)
+        bars = ax.bar(x, values, color=palette, edgecolor=bar_edge, linewidth=0.8)
+
+        # Minimal y-ticks: choose 3 ticks (min, mid, max) for readability
+        vmin = 0.0
+        vmax = values.max() if values.max() > 0 else 1.0
+        mid = (vmin + vmax) / 2.0
+        ticks = [vmin, mid, vmax]
+        # if all values are tiny (e.g., all zeros), choose nicer ticks
+        if vmax == 0:
+            ticks = [0, 0.5, 1.0]
+        ax.set_yticks(ticks)
+        ax.set_yticklabels([short_fmt(t) for t in ticks], fontsize=tick_fontsize)
+
+        # Title & axis label
+        ax.set_title(disp, **title_font)
+        ax.set_ylabel("", fontsize=label_fontsize)  # avoid extra label text
+        ax.set_xticks([])  # hide x tick labels to reduce repetition (legend clarifies)
+
+        # Add concise value annotations above bars (rounded, short)
+        for bar, val in zip(bars, values):
+            h = bar.get_height()
+            # place annotation slightly above bar
+            if h > 0:
+                ax.annotate(
+                    short_fmt(h),
+                    xy=(bar.get_x() + bar.get_width() / 2, h),
+                    xytext=(0, 6),
+                    textcoords="offset points",
+                    ha="center",
+                    va="bottom",
+                    fontsize=annotation_fs
+                )
+
+        # Visual tweaks
+        ax.grid(axis="y", linestyle="--", linewidth=0.9, alpha=0.6)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["left"].set_linewidth(0.8)
+        ax.spines["bottom"].set_visible(False)
+
+    # Overall title
+    fig.suptitle(f"Experiment Metrics — {dataset_name}", fontsize=24, fontweight="bold", y=0.98)
+
+    # Legend only once, top center, no title
+    fig.legend(handles=legend_patches, loc="upper center", ncol=min(len(labels), 4),
+               fontsize=14, frameon=False, bbox_to_anchor=(0.5, 0.93))
+
+    plt.tight_layout(rect=[0, 0, 1, 0.92], pad=3)
+    out_path = os.path.join(SAVE_DIR, "metrics_subplots.png")
+    plt.savefig(out_path, dpi=300)
+    plt.close(fig)
+
+    print(f"Saved slide-ready metrics figure to: {out_path}")
 
 def plot_category_stats_box(experiments, dataset_name):
     """
@@ -412,6 +537,13 @@ def plot_category_stats_box(experiments, dataset_name):
         ax.tick_params(axis='x', labelsize=18)
         ax.tick_params(axis='y', labelsize=18)
         ax.grid(True, linestyle="--", linewidth=1, alpha=0.7)
+        def human_format(num, pos=None):
+            if num >= 1e6:
+                return f"{num/1e6:.1f}M"
+            if num >= 1e3:
+                return f"{num/1e3:.0f}K"
+            return str(int(num))
+        ax.yaxis.set_major_formatter(FuncFormatter(human_format))
 
         # Secondary y-axis for total_tokens -> cost
         if metric == "total_tokens":
@@ -424,7 +556,7 @@ def plot_category_stats_box(experiments, dataset_name):
             if scaling_factors:
                 avg_factor = np.mean(scaling_factors)
                 ax2.set_ylim(ax.get_ylim()[0]*avg_factor, ax.get_ylim()[1]*avg_factor)
-                ax2.set_ylabel("Cost", fontsize=20)
+                ax2.set_ylabel("Cost ($)", fontsize=20)
                 ax2.tick_params(axis='y', labelsize=18)
                 ax2.grid(False)
 
@@ -447,7 +579,7 @@ if __name__ == "__main__":
         # Default configuration; update CSV paths as needed.
         config = {
             "A1: Predefined Tools": "results/result_apollo.csv",
-            "A2: Schema Discovery": "results/result_apollo.csv",
-            "A3: Full Introspection": "results/result_20250901_211437.csv",
+            "A2: Schema Discovery": "results/result_20250901_221441.csv",
+            "A3: Full Introspection": "results/full_introspection.csv",
         }
     main(config, dataset_name="The Space Devs, GPT-4.1")
