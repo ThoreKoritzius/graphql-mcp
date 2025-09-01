@@ -135,7 +135,7 @@ def plot_category_stats(experiments):
         })
         agg_results[label] = group
 
-    desired_order = ["easy", "medium", "hard", "adversarial", "unrelated"]
+    desired_order = ["easy", "hard", "adversarial"]
     categories = desired_order
     x = np.arange(len(categories))
     num_exps = len(agg_results)
@@ -216,7 +216,7 @@ def plot_stacked_tool_calls_by_category(experiments):
     create a subplot with a stacked bar chart (categories on the x-axis)
     and segments representing average counts of each tool (averaged per row within that category).
     """
-    desired_categories = ["easy", "medium", "hard", "adversarial", "unrelated"]
+    desired_categories = ["easy", "hard", "adversarial"]
     num_exps = len(experiments)
     # Determine subplot layout: one row per experiment.
     fig, axes = plt.subplots(num_exps, 1, figsize=(12, 6*num_exps), squeeze=False)
@@ -319,14 +319,16 @@ def plot_overall_tool_call_frequency(experiments):
     plt.savefig(os.path.join(SAVE_DIR, "overall_tool_call_frequency.png"), dpi=300)
     plt.close(fig)
 
-def main(config):
+def main(config, dataset_name="", drop_unrelated=True):
     ensure_save_dir(SAVE_DIR)
-    # Build experiments dictionary: all keys (except "top_k") are assumed to be CSV file paths.
     experiments = {}
     for key, value in config.items():
         if key == "top_k":
             continue
-        experiments[key] = load_data(value)
+        df = load_data(value)
+        if drop_unrelated:
+            df = df[df["category"] != "unrelated"].reset_index(drop=True)
+        experiments[key] = df
     
     # Optionally, if you want to limit to the first top_k rows:
     if "top_k" in config:
@@ -339,8 +341,103 @@ def main(config):
     plot_category_stats(experiments)
     plot_stacked_tool_calls_by_category(experiments)
     plot_overall_tool_call_frequency(experiments)
-    
+    plot_category_stats_box(experiments, dataset_name)
     print("All plots have been generated and saved in the 'plots' folder.")
+
+def plot_category_stats_box(experiments, dataset_name):
+    """
+    Create slide-friendly box plots of metrics by category for multiple experiments.
+    Metrics: num_tool_calls, success, total_tokens, latency_seconds.
+    Exports 16:9 figures with larger fonts and readable styling.
+    """
+    metrics = [
+        ("num_tool_calls", "Number of Tool Calls", "Tool Calls per Category", "box_category_tool_calls.png"),
+        ("success", "Success (1=True, 0=False)", "Success Rate per Category", "box_category_success.png"),
+        ("total_tokens", "Total Tokens", "Tokens per Category", "box_category_tokens.png"),
+        ("latency_seconds", "Latency (seconds)", "Latency per Category", "box_category_latency.png"),
+    ]
+
+    for metric, ylabel, title, file_name in metrics:
+        # Combine all experiments into one DataFrame with experiment label
+        combined = []
+        for label, df in experiments.items():
+            if metric not in df.columns:
+                continue
+            temp = df.copy()
+            if metric == "success":
+                temp[metric] = temp[metric].astype(int)
+            temp["experiment"] = label
+            combined.append(temp)
+        if not combined:
+            continue
+
+        df_all = pd.concat(combined, ignore_index=True)
+
+        # 16:9 figure, slide-friendly size
+        fig, ax = plt.subplots(figsize=(16, 9))
+        
+        # Box plot
+        sns.boxplot(
+            data=df_all,
+            x="category",
+            y=metric,
+            hue="experiment",
+            ax=ax,
+            palette="Set2",
+            linewidth=2,
+            fliersize=6
+        )
+        # Strip plot for individual points
+        sns.stripplot(
+            data=df_all,
+            x="category",
+            y=metric,
+            hue="experiment",
+            dodge=True,
+            ax=ax,
+            alpha=0.6,
+            linewidth=1,
+            size=8,
+            palette="Set2"
+        )
+
+        # Limit y-axis to 95th percentile for readability
+        upper = df_all[metric].quantile(0.95)
+        ax.set_ylim(0, upper * 1.1)
+
+        # Slide-friendly styling
+        ax.set_xlabel("", fontsize=18)
+        ax.set_ylabel(ylabel, fontsize=20)
+        ax.set_title(f"{title}, {dataset_name}", fontsize=24, fontweight="bold")
+        ax.tick_params(axis='x', labelsize=18)
+        ax.tick_params(axis='y', labelsize=18)
+        ax.grid(True, linestyle="--", linewidth=1, alpha=0.7)
+
+        # Secondary y-axis for total_tokens -> cost
+        if metric == "total_tokens":
+            ax2 = ax.twinx()
+            scaling_factors = []
+            for label, df in experiments.items():
+                if "total_cost" in df.columns and "total_tokens" in df.columns:
+                    factor = df["total_cost"].sum() / df["total_tokens"].sum()
+                    scaling_factors.append(factor)
+            if scaling_factors:
+                avg_factor = np.mean(scaling_factors)
+                ax2.set_ylim(ax.get_ylim()[0]*avg_factor, ax.get_ylim()[1]*avg_factor)
+                ax2.set_ylabel("Cost", fontsize=20)
+                ax2.tick_params(axis='y', labelsize=18)
+                ax2.grid(False)
+
+        # Clean legend: remove duplicates from stripplot
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(handles[:len(experiments)], labels[:len(experiments)], title=None,
+                  fontsize=16, title_fontsize=18, loc='upper right')
+
+        plt.tight_layout(pad=3)
+        plt.savefig(os.path.join(SAVE_DIR, file_name), dpi=300)
+        plt.close(fig)
+
+
 
 if __name__ == "__main__":
     args = parse_args()
@@ -349,6 +446,8 @@ if __name__ == "__main__":
     else:
         # Default configuration; update CSV paths as needed.
         config = {
-            "our": "results/result_apollo.csv"
+            "A1: Predefined Tools": "results/result_apollo.csv",
+            "A2: Schema Discovery": "results/result_apollo.csv",
+            "A3: Full Introspection": "results/result_20250901_211437.csv",
         }
-    main(config)
+    main(config, dataset_name="The Space Devs, GPT-4.1")
