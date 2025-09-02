@@ -4,7 +4,7 @@ use rmcp::transport::sse_server::SseServer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod common;
-use crate::common::explorer::Explorer;
+use crate::common::graphql_discovery::Explorer;
 const BIND_ADDRESS: &str = "0.0.0.0:5001";
 
 #[derive(Parser, Debug)]
