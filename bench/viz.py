@@ -545,20 +545,6 @@ def plot_category_stats_box(experiments, dataset_name):
             return str(int(num))
         ax.yaxis.set_major_formatter(FuncFormatter(human_format))
 
-        # Secondary y-axis for total_tokens -> cost
-        if metric == "total_tokens":
-            ax2 = ax.twinx()
-            scaling_factors = []
-            for label, df in experiments.items():
-                if "total_cost" in df.columns and "total_tokens" in df.columns:
-                    factor = df["total_cost"].sum() / df["total_tokens"].sum()
-                    scaling_factors.append(factor)
-            if scaling_factors:
-                avg_factor = np.mean(scaling_factors)
-                ax2.set_ylim(ax.get_ylim()[0]*avg_factor, ax.get_ylim()[1]*avg_factor)
-                ax2.set_ylabel("Cost ($)", fontsize=20)
-                ax2.tick_params(axis='y', labelsize=18)
-                ax2.grid(False)
 
         # Clean legend: remove duplicates from stripplot
         handles, labels = ax.get_legend_handles_labels()
@@ -579,7 +565,7 @@ if __name__ == "__main__":
         # Default configuration; update CSV paths as needed.
         config = {
             "A1: Predefined Tools": "results/result_apollo.csv",
-            "A2: Schema Discovery": "results/result_20250901_221441.csv",
+            "A2: Schema Discovery": "results/result_explore.csv",
             "A3: Full Introspection": "results/full_introspection.csv",
         }
     main(config, dataset_name="The Space Devs, GPT-4.1")
