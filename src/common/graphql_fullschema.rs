@@ -9,6 +9,7 @@
 //! - `execute_query`: Submits a provided GraphQL query string and returns the raw JSON response.
 //! - SDL Helper Functions: Internal helpers to convert introspection JSON into SDL string output.
 //!
+use crate::common::graphql_client::fetch_query;
 use rmcp::{Error as McpError, ServerHandler, const_string, model::*, schemars, tool};
 use serde_json::Value;
 

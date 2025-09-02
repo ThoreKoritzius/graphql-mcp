@@ -4,12 +4,14 @@ A lightweight, experimental GraphQL server in Rust designed to bridge [Model Con
 This project enables rapid prototyping, experimentation, and learning.
 
 ![Sequence Diagram](images/sequence_diagram.svg)
+
 ## Overview
 
 This project provides a GraphQL MCP server implemented in Rust, as well as test servers for local development:
 
 - **High performance** through Rust.
-- **Modular**: Easily connect to custom GraphQL or LLM servers.
+- **Modular**: Easily connect to custom GraphQL endpoints using different exploration strategies.
+- **Flexible**: Choose between **Discovery** or **Fullschema** exploration at runtime.
 - **Ideal for experimentation and learning**: Observe live tool calls, responses, and server behavior.
 
 ---
@@ -48,13 +50,19 @@ OPENAI_API_KEY=your_openai_api_key
 
 ### 3. Run with Cargo
 
-Run the server, specifying your GraphQL endpoint:
+Run the server, specifying your GraphQL endpoint and exploration strategy:
 
 ```bash
-cargo run -- --endpoint http://127.0.0.1:3000
+# Discovery strategy (default)
+cargo run -- --endpoint http://127.0.0.1:3000 --strategy discovery
+
+# Fullschema strategy
+cargo run -- --endpoint http://127.0.0.1:3000 --strategy fullschema
 ```
 
-The server will be available at: [http://localhost:5000](http://localhost:5000)
+The server will be available at: [http://localhost:5001](http://localhost:5001)
+
+> **Note:** The strategy flag controls whether the server uses the lightweight **Discovery** explorer (field-by-field introspection) or the **Fullschema** explorer (fetches the entire schema at once).
 
 ### 4. (Optional) Or test the full setup - Run with Docker Compose
 
@@ -70,27 +78,32 @@ When all services are running, visit [http://localhost:3000/](http://localhost:3
 
 ## Usage
 
-- The **main server** (graphql-mcp) listens on port `5000` by default.
-- To connect your own LLM service (e.g. Claude, OpenAI, etc.), configure your MCP client:
+- The **main server** (graphql-mcp) listens on port `5001` by default.
+- To connect your own LLM service (e.g., Claude, OpenAI, etc.), configure your MCP client:
 
-  ```json
-  {
-    "mcpServers": {
-      "graphql_mcp": {
-        "url": "http://graphql-mcp-server:5001/sse"
-      }
+```json
+{
+  "mcpServers": {
+    "graphql_mcp": {
+      "url": "http://graphql-mcp-server:5001/sse"
     }
   }
-  ```
+}
+```
+
+- Tools registered by the server are automatically exposed for the chosen strategy:
+  - **Discovery**: field-by-field inspection, SDL snippets, and query execution.
+  - **Fullschema**: complete schema introspection and query execution.
 
 ---
 
 ## Configuration
 
 - Set GraphQL endpoint with `--endpoint http://your-endpoint`
+- Select exploration strategy with `--strategy discovery|fullschema`
 - Set your OpenAI API key in `.env`
 - Exposed ports:
-  - `5000` (GraphQL MCP server)
+  - `5001` (GraphQL MCP server)
   - `3000` (Demo UI)
 
 ---
@@ -102,5 +115,6 @@ To introspect and debug MCP traffic live, use the [MCP Inspector](https://github
 ```bash
 npx @modelcontextprotocol/inspector http://localhost:5001/sse
 ```
+
 - Select Transport Type: `SSE`
 - This enables live introspection and visualization of MCP traffic.
