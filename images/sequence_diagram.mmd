@@ -1,0 +1,33 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "primaryColor": "#ffffff",
+    "secondaryColor": "#ffffff",
+    "tertiaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "lineColor": "#000000",
+    "actorBorder": "#000000",
+    "actorTextColor": "#000000",
+    "arrowheadColor": "#000000",
+    "noteBkgColor": "#f8f8f8",
+    "noteTextColor": "#000000"
+  }
+}}%%
+sequenceDiagram
+    actor U as User
+    participant L as LLM
+    participant M as MCP Tool
+    participant G as GraphQL API
+
+    U->>L: question
+    L->>M: tool? (introspect | query)
+    alt introspect
+        M->>G: __schema
+        G-->>M: schema
+    else query
+        M->>G: query
+        G-->>M: data
+    end
+    M-->>L: result
+    L-->>U: answer
