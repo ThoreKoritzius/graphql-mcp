@@ -114,3 +114,97 @@ pub fn introspect_type_query(typename: &str) -> String {
     "#;
     template.replace("__TYPENAME__", typename)
 }
+
+// -------------------- SDL Conversion --------------------
+pub fn type_ref_to_sdl(typ: &Value) -> String {
+    let kind = typ.get("kind").and_then(|v| v.as_str()).unwrap_or("");
+    let name = typ.get("name").and_then(|v| v.as_str()).unwrap_or("");
+
+    match kind {
+        "NON_NULL" => {
+            let of_type = typ.get("ofType").unwrap_or(&Value::Null);
+            format!("{}!", type_ref_to_sdl(of_type))
+        }
+        "LIST" => {
+            let of_type = typ.get("ofType").unwrap_or(&Value::Null);
+            format!("[{}]", type_ref_to_sdl(of_type))
+        }
+        _ => name.to_string(),
+    }
+}
+
+fn field_to_sdl(f: &Value) -> String {
+    let name = f.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    let args = f
+        .get("args")
+        .and_then(|a| a.as_array())
+        .map(|arr| {
+            arr.iter()
+                .map(|arg| {
+                    let aname = arg.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                    let atyp = type_ref_to_sdl(&arg["type"]);
+                    format!("{aname}: {atyp}")
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        })
+        .filter(|s| !s.is_empty())
+        .map(|s| format!("({s})"))
+        .unwrap_or_default();
+
+    let typ = type_ref_to_sdl(&f["type"]);
+    format!("  {name}{args}: {typ}")
+}
+
+fn input_field_to_sdl(f: &Value) -> String {
+    let name = f.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    let typ = type_ref_to_sdl(&f["type"]);
+    format!("  {name}: {typ}")
+}
+
+pub fn type_to_sdl(t: &Value) -> Option<String> {
+    let kind = t.get("kind").and_then(|v| v.as_str()).unwrap_or("");
+    let name = t.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    if name.is_empty() {
+        return None;
+    }
+
+    match kind {
+        "OBJECT" => {
+            let mut s = format!("type {name} {{\n");
+            if let Some(fields) = t.get("fields").and_then(|f| f.as_array()) {
+                for f in fields {
+                    s.push_str(&format!("{}\n", field_to_sdl(f)));
+                }
+            }
+            s.push_str("}\n");
+            Some(s)
+        }
+        "INPUT_OBJECT" => {
+            let mut s = format!("input {name} {{\n");
+            if let Some(fields) = t.get("inputFields").and_then(|f| f.as_array()) {
+                for f in fields {
+                    s.push_str(&format!("{}\n", input_field_to_sdl(f)));
+                }
+            }
+            s.push_str("}\n");
+            Some(s)
+        }
+        "ENUM" => {
+            let mut s = format!("enum {name} {{\n");
+            if let Some(vals) = t.get("enumValues").and_then(|v| v.as_array()) {
+                for v in vals {
+                    if let Some(vname) = v.get("name").and_then(|vv| vv.as_str()) {
+                        s.push_str(&format!("  {vname}\n"));
+                    }
+                }
+            }
+            s.push_str("}\n");
+            Some(s)
+        }
+        "SCALAR" => Some(format!("scalar {name}\n")),
+        "INTERFACE" => Some(format!("interface {name} {{}}\n")),
+        "UNION" => Some(format!("union {name} = ...\n")),
+        _ => None,
+    }
+}
