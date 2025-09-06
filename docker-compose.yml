@@ -12,6 +12,7 @@ services:
     environment:
       - RUST_LOG=debug
       - ENDPOINT=http://test-graphql-server:8000
+      - STRATEGY=discovery
     restart: unless-stopped
     depends_on:
       - test-graphql-server
