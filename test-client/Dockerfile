@@ -1,9 +1,3 @@
-
-
-# Stage 1: Build with Poetry
-
-# Stage 1: Build with Poetry and bundle venv
-
 # Stage 1: Build with Poetry and bundle venv
 FROM python:3.12-slim AS builder
 RUN pip install --no-cache-dir "poetry>=1.2.0" "poetry-plugin-bundle>=0.2.0"
