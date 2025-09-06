@@ -64,7 +64,7 @@ The server will be available at: [http://localhost:5001](http://localhost:5001)
 
 > **Note:** The strategy flag controls whether the server uses the lightweight **Discovery** explorer (field-by-field introspection) or the **Fullschema** explorer (fetches the entire schema at once).
 
-### 4. (Optional) Or test the full setup - Run with Docker Compose
+### 4. (Optional, Easy Full Setup) Or test the full setup - Run with Docker Compose
 
 Launch all services with:
 
@@ -73,6 +73,18 @@ docker-compose up --build
 ```
 
 When all services are running, visit [http://localhost:3000/](http://localhost:3000/) for a demo chat UI with live tool calls and answers.
+
+Control your ednpoint and strategy via the docker compose environment variables
+
+```yaml
+services:
+  graphql-mcp:
+    environment:
+      - RUST_LOG=debug
+      - ENDPOINT=http://test-graphql-server:8000 # or your desired GraphQL endpoint
+      - STRATEGY=discovery # or 'fullschema'
+```
+
 
 ---
 
@@ -118,3 +130,33 @@ npx @modelcontextprotocol/inspector http://localhost:5001/sse
 
 - Select Transport Type: `SSE`
 - This enables live introspection and visualization of MCP traffic.
+
+# Benchmarks
+
+Benchmark scripts for the three strategies are located in the `bench` folder. To run benchmarks, simply bring up the required services using Docker Compose:
+
+```bash
+docker compose up
+```
+and then run the `bench.py` script, which runs the `dataset.csv` throguh the test-client and captures results and graphs.
+
+**Configuration Example:**
+
+For the `main` and `control` services, you can configure the following environment variables:
+
+```yaml
+services:
+  graphql-mcp:
+    environment:
+      - RUST_LOG=debug
+      - ENDPOINT=http://test-graphql-server:8000 # or your desired GraphQL endpoint
+      - STRATEGY=discovery # or 'fullschema'
+```
+
+We benchmarked our server using all three strategies on the [SpaceDevs Example Schema](https://thespacedevs-production.up.railway.app) and our benchmark dataset.
+
+**Results:**
+
+![Tokens](bench/results/the_space_devs/box_category_tokens.png)
+
+![Comparison](bench/results/the_space_devs/metrics_subplots.png)
