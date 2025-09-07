@@ -131,6 +131,11 @@ npx @modelcontextprotocol/inspector http://localhost:5001/sse
 - Select Transport Type: `SSE`
 - This enables live introspection and visualization of MCP traffic.
 
+# Blue-Print for Tool-Selection
+
+
+![Decision Tree](images/decisin_tree.svg)
+
 # Benchmarks
 
 Benchmark scripts for the three strategies are located in the `bench` folder. To run benchmarks, simply bring up the required services using Docker Compose:

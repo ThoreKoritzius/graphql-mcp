@@ -1,0 +1,43 @@
+%%{init: {"themeVariables": {"fontSize": "22px", "fontFamily":"Arial"}}}%%
+flowchart LR
+  %% Nodes (use <br/> for line breaks)
+  Start["Start"]
+  LS{Large schema?}
+  CR{Complex relationships?}
+  LL{High Accuracy/Flexibility required?}
+
+  App1["App 1<br/>Custom tools<br/>(predefined queries — low latency)"]
+  App2["App 2<br/>Full schema<br/>(high accuracy, high token use)"]
+  App3["App 3<br/>Agentic discovery<br/>(adaptive, scalable for large schemas)"]
+  Hybrid["Hybrid<br/>(App1 custom<br/>+ App3 discovery)"]
+
+  %% Flow (logic)
+  Start --> LS
+  LS -->|Yes| App3       
+  LS -->|No| CR
+
+  CR -->|Yes| App1       
+  CR -->|No| LL
+
+  LL -->|No| App1       
+  LL -->|Yes| App2         
+
+  %% Hybrid suggestion (dotted links): only App1 + App3
+  App1 -.-> Hybrid
+  App3 -.-> Hybrid
+
+  %% Styling for readability & contrast
+  classDef decision fill:#FFF6D9,stroke:#D98E00,stroke-width:2px,color:#051018;
+  classDef approach fill:#E9FFF1,stroke:#1A7A3F,stroke-width:2px,color:#04120A;
+  classDef hybrid fill:#E9F1FF,stroke:#0F4C8A,stroke-width:2px,color:#041233;
+
+  class LS,CR,LL decision;
+  class App1,App2,App3 approach;
+  class Hybrid hybrid;
+
+  %% Node-level style tweaks (supported by Mermaid)
+  style Start fill:#FFFFFF,stroke:#333333,stroke-width:3px,font-size:22px
+  style App1  fill:#E9FFF1,stroke:#1A7A3F,stroke-width:2px,font-size:20px
+  style App2  fill:#E9FFF1,stroke:#1A7A3F,stroke-width:2px,font-size:20px
+  style App3  fill:#E9FFF1,stroke:#145B3F,stroke-width:2px,font-size:20px
+  style Hybrid fill:#E9F1FF,stroke:#0F4C8A,stroke-width:2px,font-size:20px
