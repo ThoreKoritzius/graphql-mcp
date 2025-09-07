@@ -1,9 +1,21 @@
 # GraphQL MCP Server
 
-A lightweight, experimental GraphQL server in Rust designed to bridge [Model Context Protocol (MCP)] with GraphQL.  
-This project enables rapid prototyping, experimentation, and learning.
+A lightweight, experimental Rust server that connects your **GraphQL data API** to **LLMs**.  
+Ideal for **rapid prototyping**, **experimentation**, and learning.
+
+This project provides:
+- **Three integration approaches:**
+  - **A1:** Custom engineered queries as tools
+  - **A2:** Full schema supplied in LLM context *(best for smaller schemas)*
+  - **A3:** Agentic tool discovery and query execution
+- A **benchmarking environment** to measure **token usage, tool calls, latency**, and **accuracy**
+
+See the relevant sections below for **benchmarking** and **best practices**.
+
+Use this MCP server as an **abstraction layer** between your API endpoint and LLMs:  
 
 ![Sequence Diagram](images/sequence_diagram.svg)
+
 
 ## Overview
 
