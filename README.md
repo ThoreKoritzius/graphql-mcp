@@ -143,10 +143,23 @@ npx @modelcontextprotocol/inspector http://localhost:5001/sse
 - Select Transport Type: `SSE`
 - This enables live introspection and visualization of MCP traffic.
 
-# Blue-Print for Tool-Selection
+# Blueprint for Tool Selection
 
+A1 Custom Tools
+- Provide custom tools for often used or complex queries
+- Provide a clear tool description.
 
-![Decision Tree](images/decisin_tree.svg)
+A2 Full Schema
+- Load full schema in context
+- Should be used only for small schemas (due to context-size limitations and degraded accuracy with increased context)
+- Make sure to use Key-Value LLM Caching APIs to reduce input token cost
+
+A3 Agentic Discovery
+- Agentic Schema Discovery improves with rich context
+- Use type annotations and documentation of your schema.
+- Include examples of working queries.
+
+![Decision Tree](images/decision_tree.svg)
 
 # Benchmarks
 
