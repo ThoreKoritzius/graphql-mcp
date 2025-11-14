@@ -61,37 +61,67 @@ def constrain_results_by_first_signature(results: List[Tuple[float, Dict[str, An
     return [first_result] + filtered_rest
 
 def constrain_results_recursively(results: List[Tuple[float, Dict[str, Any]]], topk: int) -> List[Tuple[float, Dict[str, Any]]]:
-    print("A33")
+    """
+    Select up to `topk` results using recursive type-based expansion.
+
+    Starting from the highest-scoring unused result (the "root"), add it to the output,
+    then repeatedly expand by finding results whose `type_name` matches the current node's
+    `field_type`, prioritized by their score. If fewer than `topk` results are found via
+    connected expansions, start a new expansion from the next highest-scoring unused result.
+    Repeat until `topk` results are collected or all results are exhausted.
+
+    Args:
+        results: List of (score, document) tuples, where document contains `metadata` with
+                 `field_type` and `type_name` keys.
+        topk: The desired number of results to select.
+
+    Returns:
+        List of up to `topk` (score, document) tuples, ranked by expansion traversal order.
+    """
     if not results:
         return []
 
     selected = []
     used = set()
-    queue = [0]  # start with root
 
-    while queue and len(selected) < topk:
-        idx = queue.pop(0)
-        if idx in used:
-            continue
-        score, doc = results[idx]
-        selected.append((score, doc))
-        used.add(idx)
+    # This tracks indices (like a work queue for BFS, prioritized by score)
+    pending_roots = [i for i in range(len(results))]
+    while len(selected) < topk and pending_roots:
+        # Find next unused, highest-score result as current cluster root
+        next_root = None
+        for i in pending_roots:
+            if i not in used:
+                next_root = i
+                break
+        if next_root is None:
+            break  # all used
 
-        meta = doc.get("metadata", {})
-        field_type = (meta.get("field_type") or "?").replace("!", "").replace("[", "").replace("]", "")
+        queue = [next_root]
+        pending_roots = [i for i in pending_roots if i != next_root]
 
-        # Find all unused children with type_name == field_type, sort by score desc
-        children = [
-            (j, results[j][0])
-            for j in range(len(results))
-            if j not in used
-            and results[j][1].get("metadata", {}).get("type_name") == field_type
-            and j not in queue
-        ]
-        children.sort(key=lambda x: -x[1])
-        child_indices_sorted = [j for j, _ in children]
-        # Add high-score children to the FRONT so next pop() always gives best child
-        queue = child_indices_sorted + queue
+        while queue and len(selected) < topk:
+            idx = queue.pop(0)
+            if idx in used:
+                continue
+            score, doc = results[idx]
+            selected.append((score, doc))
+            used.add(idx)
+
+            meta = doc.get("metadata", {})
+            field_type = (meta.get("field_type") or "?").replace("!", "").replace("[", "").replace("]", "")
+
+            # Find all unused children with matching type_name, sort by score desc
+            children = [
+                (j, results[j][0])
+                for j in range(len(results))
+                if j not in used
+                and results[j][1].get("metadata", {}).get("type_name") == field_type
+                and j not in queue
+            ]
+            children.sort(key=lambda x: -x[1])
+            child_indices_sorted = [j for j, _ in children]
+            # Add high-score children to the FRONT for high-score-first expansion
+            queue = child_indices_sorted + queue
 
     return selected[:topk]
 
